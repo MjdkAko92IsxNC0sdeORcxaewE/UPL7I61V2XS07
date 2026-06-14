@@ -1,0 +1,196 @@
+<!-- deepwiki_source_url: https://deepwiki.com/search/-deepwiki-candidate-triage-pro_ddc32018-b2d8-4f09-9c3d-2dfb09aa6e3f?mode=deep -->
+<!-- deepwiki_verdict: needs_local_proof -->
+
+## Verdict
+NEEDS_LOCAL_PROOF
+
+## Paid Scope Match
+fund_extraction (fee underpayment — borrower extracts USDS at below-intended cost)
+
+## Exact Code Path
+
+**file:** `src/OracleRateCalculation.sol`
+**function:** `getOracleRate`
+**symbols/lines:**
+
+```
+line 20-22: absDelayTime = |block.timestamp - publishTimePyth|
+line 24:    oracleRate = deviationPyth + absDelayTime * DECIMAL_PRECISION / 10000
+```
+
+The `publishTimePyth` value flows from:
+
+- `src/PriceFeed.sol` line 675: `pythResponse.publishTimePyth = bnbPrice.publishTime;`
+- `src/PriceFeed.sol` line 243: `result.publishTimePyth = pythResponse.publishTimePyth;`
+- `src/BorrowerOperations.sol` lines 184–188: `oracleRateCalc.getOracleRate(fetchPriceResult.oracleKey, fetchPriceResult.deviationPyth, fetchPriceResult.publishTimePyth)`
+- `src/BorrowerOperations.sol` line 605: `getBorrowingFee(param.USDSAmount, param.oracleRate)` — fee paid by borrower [1](#0-0) [2](#0-1) [3](#0-2) [4](#0-3) 
+
+## Attacker Path
+
+**preconditions:**
+- Attacker is an unprivileged borrower on BNB Chain (~3s deterministic block times)
+- Pyth publishes price updates at sub-second to second frequency; the attacker can observe the Pyth update stream off-chain
+- The attacker can predict the next block's `block.timestamp` with high confidence (BNB Chain validators set timestamps deterministically)
+- `priceFeedUpdateData` is a **caller-supplied** `bytes[] calldata` parameter — the attacker freely chooses which signed Pyth VAA to submit
+
+**attacker-controlled inputs:**
+- `priceFeedUpdateData` in `openTrove` / `withdrawUSDS` / `adjustTrove` — the attacker selects a valid Pyth VAA whose embedded `publishTime` equals the predicted `block.timestamp` of the execution block
+
+**call sequence:**
+1. Attacker monitors the Pyth price update stream off-chain
+2. Attacker predicts `T = next_block.timestamp` (BNB Chain, ~3s cadence)
+3. Attacker finds a valid Pyth VAA with `publishTime = T` (or within ±5s window — see below)
+4. Attacker calls `BorrowerOperations.openTrove(...)` or `withdrawUSDS(...)` with that VAA
+5. `PriceFeed.fetchPrice` calls `pyth.updatePriceFeeds{value: fee}(data)` then `pyth.getPriceNoOlderThan(BNBFeed, 120)` — succeeds because `publishTime` is within 120s
+6. `pythResponse.publishTimePyth = T`; `fetchPrice` returns `publishTimePyth = T`
+7. `getOracleRate` computes `absDelayTime = |block.timestamp - T| = 0`
+8. `oracleRate = deviationPyth + 0 = deviationPyth` (minimum possible rate)
+9. `getBorrowingFee` charges the attacker the minimum fee, saving up to `MAX_ORACLE_RATE_PERCENTAGE - deviationPyth` (up to 0.25% of borrowed USDS)
+
+## Why Existing Checks Fail
+
+**`_pythIsBroken` check** (`src/PriceFeed.sol` lines 507–512):
+```solidity
+if (_response.publishTimePyth > block.timestamp) {
+    if (_response.publishTimePyth.sub(block.timestamp) > 5) {
+        return true;
+    }
+}
+```
+This explicitly allows `publishTimePyth` up to `block.timestamp + 5`. An attacker whose VAA has `publishTime = block.timestamp` passes this check cleanly. Even with `publishTime = block.timestamp + 1..5`, `absDelayTime` is only 1–5 seconds, giving a trivially small delay surcharge (1–5 × 1e14 = 0.001–0.005% additional fee). [5](#0-4) 
+
+**`_pythIsFrozen` check** (`src/PriceFeed.sol` lines 547–552):
+```solidity
+if (block.timestamp > _pythResponse.publishTimePyth) {
+    return block.timestamp.sub(_pythResponse.publishTimePyth) > 30;
+}
+return false;
+```
+When `publishTimePyth >= block.timestamp`, this returns `false` — not frozen. [6](#0-5) 
+
+**`deviationPyth > MAX_SCALED_DEVIATION_PYTH` check** (`src/PriceFeed.sol` line 520): This only rejects Pyth if confidence is too high (>0.25%), it does not enforce any minimum delay component in the fee. [7](#0-6) 
+
+**`getOracleRate` itself** has no floor on `absDelayTime` and no check that `publishTimePyth` is strictly in the past. The absolute-value formulation `|block.timestamp - publishTimePyth|` was presumably intended to handle minor clock skew, but it also allows a future-dated or exactly-current timestamp to zero out the delay component entirely. [8](#0-7) 
+
+## Rejection Checks
+
+**expected behavior checked:** The delay component is intended to penalize stale prices. A `publishTimePyth = block.timestamp` means zero staleness — one could argue this is "correct" behavior. However, the design intent is that the delay reflects actual price age at execution time; a future-dated or exactly-current timestamp is not a normal oracle condition and the protocol provides no guard against it being attacker-selected.
+
+**prior report checked:** No evidence of a prior report in the indexed codebase.
+
+**README/NatSpec checked:** No NatSpec on `getOracleRate` documenting this as expected behavior.
+
+**unsupported assumption checked:** The attack does NOT require forging Pyth signatures. It only requires selecting among legitimately published Pyth VAAs — a normal user action. The `priceFeedUpdateData` parameter is explicitly caller-supplied with no restriction on which valid VAA is chosen.
+
+## Local Proof Required
+
+**test type:** Foundry fork test (BNB Chain mainnet fork) or unit test with mock Pyth
+
+**test file to add:** `test/OracleRateTimestampManipulation.t.sol`
+
+**test setup:**
+1. Deploy mock Pyth that accepts any VAA and returns a configurable `publishTime`
+2. Deploy `PriceFeed`, `OracleRateCalculation`, `BorrowerOperations` with mock Pyth
+3. Set `block.timestamp = T` via `vm.warp(T)`
+4. Construct a mock Pyth VAA with `publishTime = T` (or `T+1` to `T+5`)
+5. Call `BorrowerOperations.openTrove(...)` with that VAA
+
+**expected assertion:**
+```solidity
+// absDelayTime == 0 when publishTime == block.timestamp
+assertEq(oracleRate, deviationPyth);
+// Compare fee paid vs fee with a 30-second-old publishTime
+assertLt(feeWithTimestampMatch, feeWithNormalDelay);
+```
+
+**failure condition:** If the mock Pyth enforces that `publishTime < block.timestamp` strictly, or if the Pyth contract on-chain rejects future-dated VAAs before `PriceFeed` can read them, the attack path is blocked at the Pyth layer and the finding should be downgraded to REJECT. The local test must confirm that a VAA with `publishTime = block.timestamp` is accepted by the live Pyth contract and propagates through `getPriceNoOlderThan`.
+
+### Citations
+
+**File:** src/OracleRateCalculation.sol (L20-27)
+```text
+            uint absDelayTime = block.timestamp > publishTimePyth 
+                ? block.timestamp.sub(publishTimePyth)
+                : publishTimePyth.sub(block.timestamp);
+            
+            oracleRate = deviationPyth.add(absDelayTime.mul(DECIMAL_PRECISION).div(10000));
+            if (oracleRate > MAX_ORACLE_RATE_PERCENTAGE) {
+                oracleRate = MAX_ORACLE_RATE_PERCENTAGE;
+            }
+```
+
+**File:** src/PriceFeed.sol (L507-512)
+```text
+        // If the publishTimePyth - block.timestamp > 5, use Chainlink.
+        if (_response.publishTimePyth > block.timestamp) {
+            if (_response.publishTimePyth.sub(block.timestamp) > 5) {
+                return true;
+            }
+        }
+```
+
+**File:** src/PriceFeed.sol (L519-521)
+```text
+        // If deviationPyth > 0.25%, use Chainlink
+        if (_response.deviationPyth > MAX_SCALED_DEVIATION_PYTH) {
+            return true;
+```
+
+**File:** src/PriceFeed.sol (L546-552)
+```text
+    function _pythIsFrozen(PythResponse memory _pythResponse) internal view returns (bool) {
+        // If the block.timestamp - publishTimePyth > 30, use Chainlink.
+        if (block.timestamp > _pythResponse.publishTimePyth) {
+            return block.timestamp.sub(_pythResponse.publishTimePyth) > 30;
+        }
+        return false;
+    }
+```
+
+**File:** src/PriceFeed.sol (L663-681)
+```text
+    function _getCurrentPythResponse(
+        bytes[] calldata priceFeedUpdateData
+    ) internal returns (PythResponse memory pythResponse) {
+        uint updateFee = pyth.getUpdateFee(priceFeedUpdateData);
+        pyth.updatePriceFeeds{value: updateFee}(priceFeedUpdateData);
+
+        try pyth.getPriceNoOlderThan(BNBFeed, age) returns (PythStructs.Price memory bnbPrice) {
+            pythResponse.pricePyth = _scalePythPrice(bnbPrice, 18);
+            uint256 scaledConfidenceInterval = uint(bnbPrice.conf).mul(DECIMAL_PRECISION);
+            if (pythResponse.pricePyth != 0) {
+                pythResponse.deviationPyth = scaledConfidenceInterval.div(uint(bnbPrice.price)).div(100);
+            }
+            pythResponse.publishTimePyth = bnbPrice.publishTime;
+            if (pythResponse.pricePyth != 0 && pythResponse.publishTimePyth != 0) {
+                pythResponse.success = true;
+            }
+        } catch {
+            return pythResponse;
+        }
+```
+
+**File:** src/BorrowerOperations.sol (L183-188)
+```text
+        // calculate oracleRate
+        uint oracleRate = oracleRateCalc.getOracleRate(
+            fetchPriceResult.oracleKey, 
+            fetchPriceResult.deviationPyth, 
+            fetchPriceResult.publishTimePyth
+        );
+```
+
+**File:** src/BorrowerOperations.sol (L603-613)
+```text
+    function _triggerBorrowingFee(TriggerBorrowingFeeParam memory param) internal returns (uint) {
+        param.troveManager.decayBaseRateFromBorrowing(); // decay the baseRate state variable
+        uint USDSFee = param.troveManager.getBorrowingFee(param.USDSAmount, param.oracleRate);
+
+        _requireUserAcceptsFee(USDSFee, param.USDSAmount, param.maxFeePercentage);
+
+        // Send fee to SABLE staking contract
+        sableStaking.increaseF_USDS(USDSFee);
+        param.usdsToken.mint(sableStakingAddress, USDSFee);
+
+        return USDSFee;
+```
