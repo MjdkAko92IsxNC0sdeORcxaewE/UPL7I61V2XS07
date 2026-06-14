@@ -1,0 +1,74 @@
+[
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / TroveManager._applyPendingRewards] Can an unprivileged ATTACKER (borrower) under PRECONDITIONS (borrower has large pending BNB rewards from redistribution, calls adjustTrove to withdraw collateral) trigger CALL_SEQUENCE (applyPendingRewards moves pendingBNBReward from DefaultPool to ActivePool and adds it to trove.coll, then withdrawColl sends trove.coll - collWithdrawal back, but the ICR check uses the updated coll including pending rewards), violating INVARIANT (ICR after adjustment must be >= MCR using the correct post-reward collateral), causing scoped impact: attacker withdraws more collateral than their original deposit by claiming pending rewards and immediately withdrawing them? Local proof idea: unit test asserting that after adjustTrove with max collateral withdrawal, trove ICR >= MCR.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_625437e1-65f5-496a-b45e-c5c4d1a6cf5b?mode=deep",
+    "timestamp": "2026-06-14 14:01:19.792973",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / TroveManager.liquidateTroves assert(totals.totalDebtInSequence > 0)] Can an unprivileged ATTACKER (liquidator) under PRECONDITIONS (all troves in the liquidation sequence have ICR >= MCR, so no liquidations occur) trigger CALL_SEQUENCE (attacker calls liquidateTroves(N, ...) where all N troves are above MCR, _getTotalsFromLiquidateTrovesSequence_NormalMode returns totals with totalDebtInSequence=0, the assert on line 429 triggers), violating INVARIANT (liquidateTroves must not revert with assert when no troves are liquidatable), causing scoped impact: the assert failure wastes gas but does not extract funds; however verify batchLiquidateTroves uses require not assert for the same check? Local proof idea: unit test calling liquidateTroves when all troves are healthy, assert it reverts gracefully.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_4f7887e7-c48f-4252-bd77-d936fd3ffee5?mode=deep",
+    "timestamp": "2026-06-14 14:01:31.743970",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / TroveManager._redeemCollateralFromTrove] Can an unprivileged ATTACKER (redeemer) under PRECONDITIONS (target trove has debt just above usdsGasCompensation, USDSLot = debt - usdsGasCompensation, BNBLot = USDSLot * DECIMAL_PRECISION / price) trigger CALL_SEQUENCE (attacker redeems exactly debt - usdsGasCompensation USDS, trove is fully redeemed and closed, _redeemCloseTrove burns usdsGasCompensation from gasPool and sends remaining coll to CollSurplusPool), violating INVARIANT (after full redemption, ActivePool.USDSDebt must decrease by exactly usdsGasCompensation and ActivePool.BNB must decrease by BNBLot + newColl), causing scoped impact: if newColl calculation has rounding error, attacker receives more BNB than the USDS they burned? Local proof idea: unit test full redemption of a trove, assert USDS burned == BNB value received at oracle price.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_9eecff34-4176-44e7-a188-de39239d8c63?mode=deep",
+    "timestamp": "2026-06-14 14:01:44.231721",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / TroveManager._redistributeDebtAndColl lastBNBError_Redistribution] Can an unprivileged ATTACKER (trove owner) under PRECONDITIONS (many liquidations have occurred, lastBNBError_Redistribution has accumulated to near DECIMAL_PRECISION) trigger CALL_SEQUENCE (a new liquidation causes BNBNumerator = _coll * DECIMAL_PRECISION + lastBNBError_Redistribution, BNBRewardPerUnitStaked = BNBNumerator / totalStakes, if totalStakes is 1 wei the reward per unit staked is enormous), violating INVARIANT (L_BNB increment must not exceed _coll * DECIMAL_PRECISION / totalStakes + 1), causing scoped impact: attacker with a 1-wei stake claims the entire redistributed collateral plus accumulated error? Local proof idea: fuzz test with totalStakes=1, assert getPendingBNBReward(attacker) <= redistributed coll.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_320c5334-0d9e-44af-8690-c22b5ec068d9?mode=deep",
+    "timestamp": "2026-06-14 14:01:57.062274",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / StabilityPool.provideToSP _updateDepositAndSnapshots] Can an unprivileged ATTACKER (depositor) under PRECONDITIONS (attacker makes a deposit, a pool-emptying liquidation occurs incrementing currentEpoch, attacker calls provideToSP again) trigger CALL_SEQUENCE (getCompoundedUSDSDeposit returns 0 because epochSnapshot < currentEpoch, newDeposit = 0 + _amount = _amount, but the old deposit's BNB gain is paid out via _sendBNBGainToDepositor before the snapshot is reset), violating INVARIANT (BNB gain must be 0 for a deposit that was fully cancelled by a pool-emptying liquidation), causing scoped impact: attacker extracts BNB gains for a deposit that was already fully consumed by liquidation? Local proof idea: unit test with pool-emptying liquidation followed by provideToSP, assert depositorBNBGain == 0 after epoch change.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_f5d2cfab-7b89-455b-b67e-8a5cd826f718?mode=deep",
+    "timestamp": "2026-06-14 14:02:11.687675",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / BorrowerOperations._triggerBorrowingFee sableStaking.increaseF_USDS] Can an unprivileged ATTACKER (SABLE staker) under PRECONDITIONS (borrowing fee is minted to sableStakingAddress and increaseF_USDS is called) trigger CALL_SEQUENCE (attacker stakes SABLE, a borrower opens a trove paying a fee, attacker immediately unstakes and claims F_USDS rewards), violating INVARIANT (staker's USDS reward must be proportional to their stake and the time-weighted fee accumulation), causing scoped impact: if increaseF_USDS updates the per-stake accumulator before the staker's snapshot is updated, attacker claims fees they did not earn? Local proof idea: unit test staking after fee accrual, assert staker cannot claim fees accrued before their stake.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_1d87613c-8a01-4e56-a5b7-ba48dcdb227a?mode=deep",
+    "timestamp": "2026-06-14 14:02:24.005466",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / TroveManager.redeemCollateral _getRedemptionFee] Can an unprivileged ATTACKER (redeemer) under PRECONDITIONS (oracleRate is returned as 0 by OracleRateCalculation due to a boundary condition in publishTimePyth or deviationPyth) trigger CALL_SEQUENCE (attacker calls redeemCollateral with valid priceFeedUpdateData that causes oracleRate=0, _getRedemptionFee uses only baseRate which may be near REDEMPTION_FEE_FLOOR), violating INVARIANT (redemption fee must be >= REDEMPTION_FEE_FLOOR * totalBNBDrawn regardless of oracleRate), causing scoped impact: attacker redeems at minimum fee when oracleRate should have increased the fee? Local proof idea: unit test with oracleRate=0, assert BNBFee >= REDEMPTION_FEE_FLOOR * totalBNBDrawn.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_53522940-74b5-4964-95ce-5af03086c401?mode=deep",
+    "timestamp": "2026-06-14 14:02:37.677336",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / TroveManager.batchLiquidateTroves _getTotalsFromBatchLiquidate_NormalMode] Can an unprivileged ATTACKER (liquidator) under PRECONDITIONS (attacker includes a non-active trove address in the batch array in normal mode) trigger CALL_SEQUENCE (_getTotalsFromBatchLiquidate_NormalMode does NOT check Troves[vars.user].status != Status.active unlike the recovery mode version, getCurrentICR is called on a non-active trove), violating INVARIANT (only active troves should be liquidatable), causing scoped impact: getCurrentICR on a closed trove returns a value based on zeroed coll/debt, potentially causing incorrect liquidation accounting? Local proof idea: unit test batchLiquidateTroves in normal mode with a closed trove address, assert no accounting changes occur for the closed trove.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_e5de8b47-8e4c-4bd4-8294-0a0e409973f7?mode=deep",
+    "timestamp": "2026-06-14 14:02:50.821440",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / TroveManager._updateSystemSnapshots_excludeCollRemainder] Can an unprivileged ATTACKER (trove owner) under PRECONDITIONS (a liquidation sequence occurs, totalCollateralSnapshot is set to activePool.getBNB() - collGasCompensation + defaultPool.getBNB()) trigger CALL_SEQUENCE (attacker opens a new trove immediately after the liquidation, _computeNewStake uses the new totalCollateralSnapshot, but the gas compensation BNB has not yet been sent out of ActivePool), violating INVARIANT (totalCollateralSnapshot must accurately reflect the collateral backing active stakes), causing scoped impact: if gas compensation is double-subtracted from the snapshot, new trove stakes are inflated, allowing over-claiming of future redistribution rewards? Local proof idea: unit test asserting totalCollateralSnapshot == activePool.getBNB() - collGasCompensation + defaultPool.getBNB() immediately after liquidation.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_7955b1fc-134b-47d2-8cad-20ec38828ab9?mode=deep",
+    "timestamp": "2026-06-14 14:03:04.988415",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / USDSToken.permit] Can an unprivileged ATTACKER under PRECONDITIONS (attacker obtains a valid EIP-2612 permit signature from a USDS holder) trigger CALL_SEQUENCE (attacker calls usdsToken.permit(owner, attacker, amount, deadline, v, r, s) to set allowance, then calls usdsToken.transferFrom(owner, attacker, amount)), violating INVARIANT (USDS transfers via transferFrom must not bypass _requireValidRecipient), causing scoped impact: attacker steals USDS from the permit signer? Local proof idea: unit test with valid permit signature, assert transferFrom succeeds and owner's balance decreases by amount.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_a982fcec-529a-498d-ab5c-aa1d389f2aab?mode=deep",
+    "timestamp": "2026-06-14 14:03:19.930165",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / BorrowerOperations.closeTrove] Can an unprivileged ATTACKER (borrower) under PRECONDITIONS (borrower calls closeTrove, debt includes USDS_GAS_COMPENSATION, borrower must have debt - USDS_GAS_COMPENSATION USDS) trigger CALL_SEQUENCE (borrower repays debt - USDS_GAS_COMPENSATION, _repayUSDS burns from borrower and decreases ActivePool debt, then _repayUSDS burns USDS_GAS_COMPENSATION from gasPool and decreases ActivePool debt again, then activePool.sendBNB sends full coll to borrower), violating INVARIANT (after closeTrove, ActivePool.USDSDebt must decrease by exactly trove.debt), causing scoped impact: if gasPool has insufficient USDS balance, the second _repayUSDS reverts, but does this leave ActivePool in an inconsistent state? Local proof idea: unit test closeTrove with gasPool having exactly USDS_GAS_COMPENSATION, assert ActivePool.getUSDSDebt() decreases by full trove debt.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_d83ef7af-a323-4d1a-a0cd-f3e1cb317f50?mode=deep",
+    "timestamp": "2026-06-14 14:03:34.106294",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: sendBNB / TroveManager.redeemCollateral totals.totalUSDSSupplyAtStart] Can an unprivileged ATTACKER (redeemer) under PRECONDITIONS (getEntireSystemDebt() returns activePool.getUSDSDebt() + defaultPool.getUSDSDebt(), which may differ from usdsToken.totalSupply() due to gas compensation USDS in GasPool) trigger CALL_SEQUENCE (attacker holds USDS equal to totalUSDSSupplyAtStart, the assert on line 1022 passes, attacker redeems all USDS), violating INVARIANT (usdsToken.totalSupply() must equal activePool.getUSDSDebt() + defaultPool.getUSDSDebt()), causing scoped impact: if there is a discrepancy between total USDS supply and total system debt, the redeemer can redeem more BNB than the system can cover? Local proof idea: invariant test asserting usdsToken.totalSupply() == activePool.getUSDSDebt() + defaultPool.getUSDSDebt() at all times.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_2bb4d561-949b-4dad-9dc6-2a53efa47a41?mode=deep",
+    "timestamp": "2026-06-14 14:03:49.221303",
+    "report_generated": false
+  }
+]
