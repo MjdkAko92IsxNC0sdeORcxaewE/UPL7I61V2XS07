@@ -1,0 +1,8 @@
+[
+  {
+    "question": "[File: 'src/BNBTransferScript.sol -> Scope: Critical Fund extraction or protocol value drain'] [Function: transferBNB / claimSPRewardsAndRecycle] Can an unprivileged ATTACKER who is the script owner call claimSPRewardsAndRecycle when the script's compounded USDS deposit is zero (fully depleted by liquidations) but BNB gain is nonzero, causing withdrawFromSP(0) to send BNB gain to the script without any USDS being withdrawn, then calling transferBNB to drain the BNB gain, under preconditions that the script's SP deposit has been fully depleted by liquidations but BNB gain accumulated, violating the invariant that BNB gains from SP must be recycled into the trove, causing scoped impact: attacker extracts BNB gains from a fully depleted SP deposit without recycling them? Local proof idea: unit test with fully depleted SP deposit but nonzero BNB gain, call claimSPRewardsAndRecycle, assert BNB gain is received and transferBNB can drain it.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_a10cca6e-53a3-42ae-b566-d241e7e3a265?mode=deep",
+    "timestamp": "2026-06-14 13:47:31.153574",
+    "report_generated": false
+  }
+]
