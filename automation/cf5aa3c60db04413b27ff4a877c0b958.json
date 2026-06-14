@@ -10,5 +10,17 @@
     "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_91c862b3-bfae-4bdd-96d4-63bd3f540998?mode=deep",
     "timestamp": "2026-06-14 14:00:33.715137",
     "report_generated": false
+  },
+  {
+    "question": "[File: 'File Name: src/CollSurplusPool.sol -> Scope: Critical Reward extraction or unfair reward access: any bug that lets a user access rewards they should not receive, enter or manipulate state before rewards are distributed, bypass eligibility or timing rules, claim more rewards than other users with the same entitlement, repeat/replay reward claims, or otherwise gain excess reward value from the protocol'] [Function: accountSurplus SafeMath overflow] Can an unprivileged ATTACKER under PRECONDITIONS (balances[_account] is near type(uint256).max; TroveManager calls accountSurplus(_account, _amount) where _amount causes overflow) trigger CALL_SEQUENCE (accountSurplus -> newAmount = balances[_account].add(_amount) -> SafeMath reverts on overflow), violating INVARIANT (SafeMath must prevent balance overflow; no user should have a balance that wraps around to a small value enabling a large claim), causing scoped impact: confirm SafeMath prevents balance overflow in accountSurplus and no wrap-around claim is possible? Local proof idea: unit test: set balances[attacker] = type(uint256).max - 1 via mock TroveManager, call accountSurplus(attacker, 2), assert revert.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_f2ef97b8-9174-4f6f-bbfc-88c064a015bb?mode=deep",
+    "timestamp": "2026-06-14 14:02:01.580196",
+    "report_generated": false
+  },
+  {
+    "question": "[File: 'File Name: src/CollSurplusPool.sol -> Scope: Critical Reward extraction or unfair reward access: any bug that lets a user access rewards they should not receive, enter or manipulate state before rewards are distributed, bypass eligibility or timing rules, claim more rewards than other users with the same entitlement, repeat/replay reward claims, or otherwise gain excess reward value from the protocol'] [Function: claimColl BNB SafeMath underflow] Can an unprivileged ATTACKER under PRECONDITIONS (BNB tracker is less than claimableColl due to an accounting bug; attacker has nonzero balances[attacker]) trigger CALL_SEQUENCE (attacker calls claimCollateral -> claimColl(attacker) -> BNB.sub(claimableColl) -> SafeMath reverts if BNB < claimableColl), violating INVARIANT (BNB tracker must always be >= sum(balances); if BNB < claimableColl, the claim reverts and the borrower cannot access their legitimate surplus), causing scoped impact: identify any code path where BNB < sum(balances) could occur, causing legitimate claims to revert and surplus to be permanently locked? Local proof idea: invariant fuzz test: after every state-changing operation, assert BNB >= sum(all balances); if violated, identify the triggering sequence.",
+    "url": "https://deepwiki.com/search/-deepwiki-candidate-triage-pro_a439f622-752b-451f-a43c-5689bc287392?mode=deep",
+    "timestamp": "2026-06-14 14:02:13.378291",
+    "report_generated": false
   }
 ]
