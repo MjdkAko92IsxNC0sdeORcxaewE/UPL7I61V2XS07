@@ -114,8 +114,8 @@ Live context is useful only when it belongs to the current protocol. If `setup/l
 Preferred commands:
 
 ```bash
-python3 live_context_scanner.py --from-questions --protocol "Sable" --out setup/live_context.json
-python3 live_context_scanner.py --scope-file scope_urls.json --protocol "Sable" --out setup/live_context.json
+python3 live_context_scanner.py --from-questions --protocol "Portal" --out setup/live_context.json
+python3 live_context_scanner.py --scope-file scope_urls.json --protocol "Portal" --out setup/live_context.json
 cast chain-id --rpc-url "$RPC_URL"
 cast block latest --rpc-url "$RPC_URL"
 cast balance <contract_address> --rpc-url "$RPC_URL"
