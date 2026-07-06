@@ -77,6 +77,7 @@ class GenerateQuestions:
             EC.presence_of_element_located((By.CSS_SELECTOR, 'form'))
         )
 
+        last_error = None
         for _ in range(10):
             try:
 
@@ -107,14 +108,15 @@ class GenerateQuestions:
 
                 # add the current url to collections
                 self.save_to_questions(question_gotten, current_url)
-                break
+                return current_url
             except Exception as a:
+                last_error = a
                 print(f"There was an error")
                 print(f"{self.driver.current_url}")
                 time.sleep(10)
                 continue
 
-                # In your Deepwiki class where you save to questions.json
+        raise RuntimeError(f"DeepWiki question submission failed after 10 attempts: {last_error}")
 
     def save_to_questions(self, question_gotten, url):
         """Save question and URL to questions.json"""
@@ -145,6 +147,7 @@ class GenerateQuestions:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error saving to collections: {e}")
+            raise
 
 
 class GetQuestions:

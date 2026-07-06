@@ -1,0 +1,65 @@
+{
+  "max_repo": 10,
+  "source_repo": "incjanta/Portal",
+  "repo_name": "Portal",
+  "project_name": "Portal",
+  "target_label": "Portal BSC proxy at 0xe2ce6ab80874fa9fa2aae65d277dd6b8e65c9de0",
+  "paid_impact_focus": "fund extraction and reward extraction",
+  "scope_files": [
+    "src/Portal.sol",
+    "src/PortalBase.sol",
+    "src/PortalCommon.sol",
+    "src/libraries/Curve.sol",
+    "src/libraries/PoolAddress.sol"
+  ],
+  "target_scopes": [
+    "Critical Fund extraction or protocol value drain: any bug that lets an unprivileged user gain, buy, sell, swap, launch, migrate, claim, recover, withdraw, redeem, or redirect more BNB, quote tokens, launched tokens, LP fees, tax funds, dividend funds, salt-lock fees, or other protocol/user value than intended",
+    "Critical Reward extraction or unfair reward access: any bug that lets an unprivileged user overclaim beneficiary payouts, dividend rewards, LP-fee distributions, tax rewards, migration proceeds, or token-launch related rewards beyond valid entitlement"
+  ],
+  "live_context_hint": "BSC proxy and implementation slots, 1361+ BNB live proxy balance, AccessControl roles, token launch/swap/bonding-curve state, quote-token configuration, salt locks, staged tokens, token beneficiaries, DEX pool info, tax/dividend modules, external routers/migrators/lockers, recent TokenCreated/TokenBought/TokenSold/LaunchedToDEX/RoleGranted/fee events, and event-derived mapping keys",
+  "context_interfaces": [
+    "src/interfaces/IPortal.sol",
+    "src/interfaces/IToken.sol",
+    "src/interfaces/ITokenV2.sol",
+    "src/interfaces/ITokenV3.sol",
+    "src/interfaces/IMultiDexRouter.sol",
+    "src/interfaces/3rd/IPancakeV3Factory.sol"
+  ],
+  "protocol_focus": "Portal is a BSC token-launch and trading portal behind a transparent-style proxy. It creates/stages/commits tokens, prices bonding-curve buys and sells, handles payable swap and creation flows, migrates liquidity to DEX/locker systems, manages quote-token and tax/dividend configuration, exposes AccessControl roles, and holds a large live BNB balance on the proxy. This audit focus is only concrete fund extraction or reward extraction.",
+  "attacker_profile": "unprivileged token creator, stager, buyer, seller, swapper, salt locker, token beneficiary, dividend recipient, LP-fee claimant, quote-token user, permit user, receiver contract, or external caller interacting through Portal entrypoints",
+  "core_invariants": [
+    "attackers must not extract BNB, quote tokens, launched tokens, LP fees, tax funds, dividend funds, salt-lock fees, or migration proceeds beyond valid entitlement",
+    "Portal proxy balances, token reserves, circulating supply, quote-token balances, beneficiary liabilities, fee accounting, tax/dividend accounting, and DEX migration balances must reconcile after every buy, sell, swap, launch, commit, claim, recover, and migration path",
+    "bonding-curve estimates and reserve/supply updates must not allow rounding, decimal, fee, or threshold errors that mint excess tokens or return excess quote/native value",
+    "salt locks, staged-token ownership, token beneficiaries, fee exemptions, blocked spammers, and role-protected state must not be bypassable by alternate entrypoints or stale event-derived state",
+    "migration and LP-lock flows must not misdirect liquidity, fees, pool ownership, locker positions, hooks, or tax/dividend proceeds to attacker-controlled addresses",
+    "recover/burn/admin-adjacent functions matter only if an unprivileged attacker can trigger or prepare a later unauthorized value movement path without admin compromise",
+    "external router, migrator, locker, permit, tax processor, dividend, hook, and token calls must not let callbacks, non-standard token behavior, or malformed return data break Portal accounting in an attacker-profitable way"
+  ],
+  "high_value_surfaces": [
+    "payable token launch paths: newTokenV2/newTokenV3/newTokenV4/newTokenV5/newTokenV6/newTokenV7, stageNewTokenV5, commitNewTokenV5, lockSalt, buyOnCreation",
+    "trading paths: buy, sell, swapExactInput, swapExactInputV3, quoteExactInput, previewBuy, previewSell, previewRedeem, redeem",
+    "claim and beneficiary paths: claim, delegateClaim, setTokenBeneficiary, BeneficiaryClaimed, TaxTokenAddressesUpdated, TokenDividendTokenUpdated",
+    "migration and LP-fee paths: addV4LPLiquidity, collectV4Fees, updateTokenPoolInfo, LaunchedToDEX, V4LPFeesCollected, locker/migrator/router integrations",
+    "tax/dividend/recovery paths: recoverStuckDividend, recoverStuckTaxToken, burnStuckTaxToken, changeMarketWallet, excludeAddressFromDividends, setTokenDividendToken, updateTaxTokenAddresses",
+    "configuration and role paths: grantRole, revokeRole, renounceRole, setQuoteTokenConfiguration, setFlapFeeProfile, setFeeExemption, setBitFlags, halt, haltNewTokenV7, setSpammerBlockedBatch",
+    "packed token state and mappings: _packedTokenStates, redeemRates, lpLocks, _tokenBeneficiaries, _quoteTokenConfigurations, extensions, _dexPools, _stagedTokenStagers, salt locks, role membership",
+    "math/libraries: bonding-curve reserve/supply rounding, reserve token decimals, pool address prediction, DEX threshold and fee-profile calculations"
+  ],
+  "impact_mapping": [
+    "Fund extraction: attacker receives BNB, quote tokens, launched tokens, tax funds, dividend funds, LP fees, migration proceeds, salt-lock value, or claimable beneficiary value without paying the required amount or satisfying entitlement",
+    "Reward extraction: attacker overclaims beneficiary proceeds, dividend/LP-fee rewards, tax rewards, launch incentives, migration proceeds, or any repeated/delegated claim value",
+    "Insolvency with extraction: attacker creates a Portal/token/accounting mismatch then withdraws, sells, redeems, swaps, migrates, claims, or recovers more value than funded",
+    "Bad launch or migration value capture: attacker manipulates token launch, staged-token commit, salt ownership, DEX threshold, pool info, or migration configuration to capture other users' funds or protocol reserves",
+    "Unauthorized redirection: funds or rewards move to an attacker-controlled beneficiary, fee receiver, dividend token, pool, locker, router, migrator, or tax processor without valid authorization",
+    "Accounting corruption only counts if it leads to attacker-controlled over-buy, over-sell, over-swap, over-claim, over-recover, over-migration, or reward overpayment"
+  ],
+  "known_rejection_memory": [
+    "Reject DoS, pause, halt, spam blocking, liveness, failed launch, gas-only, griefing, and temporary lock claims unless the same reachable path transfers excess value to the attacker.",
+    "Reject admin-only role misuse, proxy-admin compromise, governance/key compromise, or maintainer configuration mistakes unless an unprivileged attacker can trigger the value extraction path.",
+    "Reject pure external router/migrator/locker/token failure unless Portal accepts attacker-controlled data or sequencing that makes Portal itself overpay or misaccount.",
+    "Reject expected bonding-curve price movement, public market competition, ordinary MEV, slippage chosen by the user, or documented tax/fee behavior unless a protected invariant is broken.",
+    "Reject stale event/key speculation unless live context or local fork tests prove the current BSC deployment has matching preconditions.",
+    "Reject source-only theories that do not connect to the live proxy address, implementation ABI, reachable entrypoint, concrete value movement, and local proof plan."
+  ]
+}

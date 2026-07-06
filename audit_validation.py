@@ -78,6 +78,7 @@ class Validator:
 
 
 
+        last_error = None
         for _ in range(10):
             try:
 
@@ -110,12 +111,15 @@ class Validator:
 
                 # add the current url to validated
                 self.save_to_validated(filename, current_url)
-                break
+                return current_url
             except Exception as a:
+                last_error = a
                 print(f"There was an error ")
                 print(f"{self.driver.current_url}")
                 time.sleep(10)
                 continue
+
+        raise RuntimeError(f"DeepWiki validation submission failed after 10 attempts: {last_error}")
 
 
     def scan_past_vuln(self, filename, question_gotten):
@@ -128,6 +132,7 @@ class Validator:
         )
 
 
+        last_error = None
         for _ in range(10):
             try:
 
@@ -159,12 +164,15 @@ class Validator:
 
                 # add the current url to validated
                 self.save_to_validated(filename, current_url)
-                break
+                return current_url
             except Exception as a:
+                last_error = a
                 print(f"There was an error ")
                 print(f"{self.driver.current_url}")
                 time.sleep(10)
                 continue
+
+        raise RuntimeError(f"DeepWiki scanner submission failed after 10 attempts: {last_error}")
 
     def ask_proof_gate(self, filename, question_gotten):
         wait = WebDriverWait(self.driver, 1200)
@@ -175,6 +183,7 @@ class Validator:
             EC.presence_of_element_located((By.CSS_SELECTOR, 'form'))
         )
 
+        last_error = None
         for _ in range(10):
             try:
                 form = wait.until(
@@ -199,12 +208,15 @@ class Validator:
                 current_url = self.driver.current_url
 
                 self.save_to_validated(filename, current_url)
-                break
-            except Exception:
+                return current_url
+            except Exception as exc:
+                last_error = exc
                 print(f"There was an error ")
                 print(f"{self.driver.current_url}")
                 time.sleep(10)
                 continue
+
+        raise RuntimeError(f"DeepWiki proof-gate submission failed after 10 attempts: {last_error}")
 
     def save_to_validated(self, filename, url):
         """Save question and URL to collections.json"""
@@ -236,6 +248,7 @@ class Validator:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error saving to validated: {e}")
+            raise
 
 
 class GetValidatedReports:

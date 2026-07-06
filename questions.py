@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 from bot_blueprint import bullets, load_blueprint, numbered
 from proof_gate_schema import proof_gate_contract_json
@@ -110,31 +111,49 @@ Only output one of these verdicts:
 
 
 def _live_context_snapshot(max_chars: int = 30000) -> str:
-    live_context_path = os.environ.get("LIVE_CONTEXT_PATH", "setup/live_context.json")
-    if not os.path.exists(live_context_path):
-        return f"""## Live Context Snapshot
-No live context file was found at `{live_context_path}`.
-For non-REJECT output, list the exact live commands needed and mark missing preconditions.
-"""
+    project_root = Path(__file__).resolve().parent
+    live_context_path = Path(os.environ.get("LIVE_CONTEXT_PATH", project_root / "setup" / "live_context.json"))
+    if not live_context_path.is_absolute():
+        live_context_path = project_root / live_context_path
 
-    try:
-        with open(live_context_path, "r", encoding="utf-8") as f:
-            content = f.read().strip()
-    except OSError as exc:
-        return f"""## Live Context Snapshot
-Could not read `{live_context_path}`: {exc}
-For non-REJECT output, list the exact live commands needed and mark missing preconditions.
-"""
+    candidate_paths = [live_context_path]
+    portal_context_path = project_root.parent / "Portal" / "live_context.json"
+    if portal_context_path not in candidate_paths:
+        candidate_paths.append(portal_context_path)
 
-    if len(content) > max_chars:
-        content = content[:max_chars] + "\n...TRUNCATED..."
+    sections = []
+    missing_paths = []
+    for path in candidate_paths:
+        if not path.exists():
+            missing_paths.append(str(path))
+            continue
 
-    return f"""## Live Context Snapshot
-Source: {live_context_path}
+        try:
+            content = path.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            sections.append(f"Source: {path}\nCould not read live context: {exc}")
+            continue
+
+        if len(content) > max_chars:
+            content = content[:max_chars] + "\n...TRUNCATED..."
+
+        sections.append(f"""Source: {path}
 
 ```json
 {content}
-```
+```""")
+
+    if not sections:
+        return f"""## Live Context Snapshot
+No live context file was found at any expected source:
+{bullets(missing_paths)}
+For non-REJECT output, list the exact live commands needed and mark missing preconditions.
+"""
+
+    return f"""## Live Context Snapshot
+Use these live-context sources together. The machine setup context is the canonical DeepWiki seed; the Portal repo context is the freshest target snapshot when present. Reject stale context if target address, implementation, source files, chain, or paid-impact focus do not match the active blueprint.
+
+{chr(10).join(sections)}
 """
 
 
@@ -143,7 +162,7 @@ def question_generator(target_file: str) -> str:
     Generate DeepWiki-compatible audit/fuzzing questions for one target.
 
     target_file format:
-    "'File Name: src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'"
+    "'File Name: src/Portal.sol -> Scope: Critical Fund extraction or protocol value drain'"
     """
 
     prompt = f"""
@@ -153,6 +172,8 @@ Generate {BLUEPRINT["paid_impact_focus"]} security audit/fuzzing questions for t
 {target_file}
 
 {_blueprint_memory()}
+
+{_live_context_snapshot()}
 
 Rules:
 * Treat `File Name:` as the exact file/module.
@@ -200,6 +221,8 @@ def audit_format(security_question: str) -> str:
 {security_question}
 
 {_blueprint_memory()}
+
+{_live_context_snapshot()}
 
 {_deepwiki_limitation_gate()}
 
@@ -293,6 +316,8 @@ def validation_format(report: str) -> str:
 
 {_blueprint_memory()}
 
+{_live_context_snapshot()}
+
 {_deepwiki_limitation_gate()}
 
 ## Rules
@@ -376,6 +401,8 @@ def scan_format(report: str) -> str:
 {report}
 
 {_blueprint_memory()}
+
+{_live_context_snapshot()}
 
 {_deepwiki_limitation_gate()}
 

@@ -17,18 +17,26 @@ class BlueprintPromptTests(unittest.TestCase):
     def test_default_blueprint_preserves_deepwiki_memory(self):
         blueprint = load_blueprint()
 
-        self.assertEqual(blueprint["repo_name"], "623_sable_active_pool")
-        self.assertIn("src/ActivePool.sol", blueprint["scope_files"])
+        self.assertEqual(blueprint["repo_name"], "Portal")
+        self.assertIn("src/Portal.sol", blueprint["scope_files"])
+        self.assertIn("src/PortalBase.sol", blueprint["scope_files"])
         self.assertEqual(len(blueprint["target_scopes"]), 2)
         self.assertTrue(any("fund extraction" in scope.lower() for scope in blueprint["target_scopes"]))
         self.assertTrue(any("reward extraction" in scope.lower() for scope in blueprint["target_scopes"]))
 
     def test_audit_prompt_uses_triage_verdicts_not_final_validation(self):
-        prompt = questions.audit_format(
-            "[File: src/ActivePool.sol] [Function: sendBNB] Can an attacker over-withdraw?"
-        )
+        with tempfile.TemporaryDirectory() as tmp:
+            live_context = Path(tmp) / "live_context.json"
+            live_context.write_text('{"target": {"label": "Portal"}, "chain": "bsc"}', encoding="utf-8")
+
+            with patch.dict(os.environ, {"LIVE_CONTEXT_PATH": str(live_context)}, clear=False):
+                prompt = questions.audit_format(
+                    "[File: src/Portal.sol] [Function: buy] Can an attacker over-withdraw?"
+                )
 
         self.assertIn("## DeepWiki Automation Boundary", prompt)
+        self.assertIn("## Live Context Snapshot", prompt)
+        self.assertIn('"target": {"label": "Portal"}', prompt)
         self.assertIn("REJECT", prompt)
         self.assertIn("NEEDS_LOCAL_PROOF", prompt)
         self.assertIn("HIGH_CONFIDENCE_CANDIDATE", prompt)
@@ -36,21 +44,29 @@ class BlueprintPromptTests(unittest.TestCase):
         self.assertNotIn("Audit Report\n\n## Title", prompt)
 
     def test_question_generator_includes_blueprint_and_local_proof_language(self):
-        prompt = questions.question_generator(
-            "'File Name: src/ActivePool.sol -> Scope: Critical Fund extraction or protocol value drain'"
-        )
+        with tempfile.TemporaryDirectory() as tmp:
+            live_context = Path(tmp) / "live_context.json"
+            live_context.write_text('{"target": {"label": "Portal"}, "latest_block": 108382650}', encoding="utf-8")
+
+            with patch.dict(os.environ, {"LIVE_CONTEXT_PATH": str(live_context)}, clear=False):
+                prompt = questions.question_generator(
+                    "'File Name: src/Portal.sol -> Scope: Critical Fund extraction or protocol value drain'"
+                )
 
         self.assertIn("DeepWiki Memory Blueprint", prompt)
+        self.assertIn("## Live Context Snapshot", prompt)
         self.assertIn("Known rejection memory", prompt)
         self.assertIn("Local proof idea", prompt)
-        self.assertIn("src/Interfaces/IActivePool.sol", prompt)
+        self.assertIn("src/interfaces/IPortal.sol", prompt)
+        self.assertIn("108382650", prompt)
 
     def test_repository_rotation_ignores_stale_other_protocol_urls(self):
         repo_data = """
 [
   "https://deepwiki.com/example/midnight--001",
   "https://deepwiki.com/example/623_sable_active_pool--001",
-  "https://deepwiki.com/example/623_sable_active_pool--002"
+  "https://deepwiki.com/example/Portal--001",
+  "https://deepwiki.com/example/Portal--002"
 ]
 """
         with patch("questions.os.path.exists", return_value=True):
@@ -60,8 +76,8 @@ class BlueprintPromptTests(unittest.TestCase):
         self.assertEqual(
             urls,
             [
-                "https://deepwiki.com/example/623_sable_active_pool--001",
-                "https://deepwiki.com/example/623_sable_active_pool--002",
+                "https://deepwiki.com/example/Portal--001",
+                "https://deepwiki.com/example/Portal--002",
             ],
         )
 
@@ -74,13 +90,30 @@ class BlueprintPromptTests(unittest.TestCase):
         self.assertIn("Do not stop after the first weak mapping", prompt)
 
     def test_scanner_prompt_requires_json_and_live_context_gate(self):
-        prompt = questions.scan_format("External critical accounting report")
+        with tempfile.TemporaryDirectory() as tmp:
+            live_context = Path(tmp) / "live_context.json"
+            live_context.write_text('{"target": {"label": "Portal"}, "chain": "bsc"}', encoding="utf-8")
+
+            with patch.dict(os.environ, {"LIVE_CONTEXT_PATH": str(live_context)}, clear=False):
+                prompt = questions.scan_format("External critical accounting report")
 
         self.assertIn("Scanned Report JSON Contract", prompt)
+        self.assertIn("## Live Context Snapshot", prompt)
         self.assertIn('"schema_version": "scanned-report-v1"', prompt)
         self.assertIn("Output only valid JSON", prompt)
         self.assertIn("stale live context does not match active blueprint", prompt)
         self.assertIn("python3 live_context_scanner.py --from-questions", prompt)
+
+    def test_validation_prompt_embeds_live_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live_context = Path(tmp) / "live_context.json"
+            live_context.write_text('{"target": {"label": "Portal"}, "chain_id": 56}', encoding="utf-8")
+
+            with patch.dict(os.environ, {"LIVE_CONTEXT_PATH": str(live_context)}, clear=False):
+                prompt = questions.validation_format("candidate drains BNB")
+
+        self.assertIn("## Live Context Snapshot", prompt)
+        self.assertIn('"chain_id": 56', prompt)
 
     def test_scanned_report_contract_only_allows_paid_scope_families(self):
         self.assertTrue(SCANNED_REPORT_CONTRACT["reject_if_not_paid_scope"])
@@ -91,7 +124,7 @@ class BlueprintPromptTests(unittest.TestCase):
     def test_proof_gate_prompt_asks_exact_live_state_question(self):
         with tempfile.TemporaryDirectory() as tmp:
             live_context = Path(tmp) / "live_context.json"
-            live_context.write_text('{"protocol": {"name": "Sable"}, "contracts": []}', encoding="utf-8")
+            live_context.write_text('{"target": {"label": "Portal"}, "chain": "bsc"}', encoding="utf-8")
 
             with patch.dict(os.environ, {"LIVE_CONTEXT_PATH": str(live_context)}, clear=False):
                 prompt = questions.proof_gate_format("candidate overclaims rewards")
@@ -100,7 +133,7 @@ class BlueprintPromptTests(unittest.TestCase):
         self.assertIn("Does this exact current protocol, with current live state", prompt)
         self.assertIn('"schema_version": "proof-gate-v1"', prompt)
         self.assertIn("Output only valid JSON", prompt)
-        self.assertIn('"protocol": {"name": "Sable"}', prompt)
+        self.assertIn('"target": {"label": "Portal"}', prompt)
 
     def test_proof_gate_contract_tracks_hard_gates(self):
         hard_gates = PROOF_GATE_CONTRACT["hard_gates"]

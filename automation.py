@@ -79,6 +79,7 @@ class Deepwiki:
 
 
 
+        last_error = None
         for _ in range(10):
             try:
 
@@ -111,12 +112,15 @@ class Deepwiki:
 
                 # add the current url to collections
                 self.save_to_file_path(question_gotten, current_url)
-                break
+                return current_url
             except Exception as a:
+                last_error = a
                 print(f"There was an error ")
                 print(f"{self.driver.current_url}")
                 time.sleep(10)
                 continue
+
+        raise RuntimeError(f"DeepWiki audit submission failed after 10 attempts: {last_error}")
 
     def save_to_file_path(self, question, url):
         """Save question and URL to collections.json"""
@@ -149,6 +153,7 @@ class Deepwiki:
                 print("dumped")
         except Exception as e:
             print(f"Error saving to collections: {e}")
+            raise
 
 
 class GetReports:
