@@ -88,3 +88,5 @@ jobs:
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python workflow_chain.py advance --stage 0 --next-workflow 0_1_validate_live_context.yml --smoke-limit "${{ inputs.smoke_limit }}"
+
+# Workflow registration refresh for migrated repository 2026-07-07.

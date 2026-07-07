@@ -82,4 +82,4 @@ jobs:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python workflow_chain.py advance --stage 1 --next-workflow 2_run_question_generator.yml --smoke-limit "${{ inputs.smoke_limit }}"
 
-# Workflow registration refresh for migrated repository.
+# Workflow registration refresh for migrated repository 2026-07-07.
