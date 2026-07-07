@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import mock_open, patch
 
 import questions
+import run_questions_generator_report
 import workflow_chain
 from bot_blueprint import load_blueprint
 from bot_runtime import batch_limit, smoke_enabled, smoke_limit
@@ -502,6 +503,65 @@ class DeploymentReadinessTests(unittest.TestCase):
             for line in content.splitlines():
                 if "git commit -m" in line:
                     self.assertIn(token, line, workflow.name)
+
+    def test_workflow_three_does_not_commit_move_only_pending_queue(self):
+        root = Path(__file__).resolve().parent.parent
+        workflow = root / ".github" / "workflows" / "3_run_question_generator_questions.yml"
+        content = workflow.read_text(encoding="utf-8")
+
+        move_step = content.index("python run_questions_generator_report_generate.py")
+        report_step = content.index("python run_questions_generator_report.py")
+        between_move_and_report = content[move_step:report_step]
+
+        self.assertNotIn("git commit -m", between_move_and_report)
+        self.assertIn("git diff --cached --quiet", content)
+        self.assertIn("Trigger next batch after reports", content)
+        self.assertNotIn("Trigger next batch after generate", content)
+
+    def test_report_runner_restores_pending_file_when_generation_fails(self):
+        class FailingQuestions:
+            def __init__(self, teardown=False):
+                pass
+
+            def get_questions(self, url):
+                raise RuntimeError("empty DeepWiki output")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pending_dir = root / "scope_questions_pending"
+            scope_questions_dir = root / "scope_questions"
+            pending_dir.mkdir()
+            source_file = pending_dir / "one.json"
+            source_file.write_text(
+                json.dumps(
+                    [
+                        {
+                            "question": "Can value be extracted?",
+                            "url": "https://deepwiki.com/example/repo",
+                            "questions_generated": False,
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.dict(
+                os.environ,
+                {
+                    "SCOPE_QUESTIONS_PENDING_DIR": str(pending_dir),
+                    "SCOPE_QUESTIONS_DIR": str(scope_questions_dir),
+                    "QUESTION_DIR": str(root / "question"),
+                },
+                clear=False,
+            ), patch.object(run_questions_generator_report, "GetQuestions", FailingQuestions):
+                with self.assertRaises(SystemExit):
+                    run_questions_generator_report.main()
+
+            restored_file = scope_questions_dir / "one.json"
+            self.assertTrue(restored_file.exists())
+            self.assertFalse(source_file.exists())
+            restored_data = json.loads(restored_file.read_text(encoding="utf-8"))
+            self.assertFalse(restored_data[0]["questions_generated"])
 
     def test_expected_github_actions_workflows_are_present(self):
         root = Path(__file__).resolve().parent.parent

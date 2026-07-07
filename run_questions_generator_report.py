@@ -3,14 +3,23 @@ import time
 from pathlib import Path
 import sys
 
-from questions_generator import GetQuestions
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import json
 import os
 
 from bot_runtime import batch_limit
+
+GetQuestions = None
+
+
+def get_questions_runner_class():
+    global GetQuestions
+    if GetQuestions is None:
+        from questions_generator import GetQuestions as runner_class
+
+        GetQuestions = runner_class
+    return GetQuestions
 
 
 def get_scope_questions_pending():
@@ -55,6 +64,65 @@ def get_scope_questions_pending():
             print(f"Error processing {json_file}: {e}")
 
     return urls
+
+
+def get_scope_questions_pending_files():
+    scope_questions_pending_dir = os.environ.get("SCOPE_QUESTIONS_PENDING_DIR", "scope_questions_pending")
+    pending_dir = Path(scope_questions_pending_dir)
+
+    if not pending_dir.exists():
+        print(f"Directory {scope_questions_pending_dir} does not exist")
+        return []
+
+    pending_files = []
+    for json_file in sorted(pending_dir.glob("*.json")):
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"Error parsing {json_file}: {e}")
+            continue
+        except Exception as e:
+            print(f"Error processing {json_file}: {e}")
+            continue
+
+        if isinstance(data, dict):
+            data = [data]
+        if not isinstance(data, list):
+            print(f"Skipping {json_file}: expected a list or object")
+            continue
+
+        entries = [item for item in data if isinstance(item, dict) and item.get("url")]
+        if entries:
+            pending_files.append((json_file, data))
+
+    if not pending_files:
+        print(f"No JSON files found in {scope_questions_pending_dir}")
+
+    return pending_files
+
+
+def restore_pending_file_to_scope_questions(file_path, data=None):
+    scope_questions_dir = os.environ.get("SCOPE_QUESTIONS_DIR", "scope_questions")
+    os.makedirs(scope_questions_dir, exist_ok=True)
+
+    source_path = Path(file_path)
+    dest_path = Path(scope_questions_dir) / source_path.name
+    if dest_path.exists():
+        base_name = dest_path.stem
+        extension = dest_path.suffix
+        timestamp = int(time.time())
+        dest_path = Path(scope_questions_dir) / f"{base_name}_{timestamp}{extension}"
+
+    if data is None:
+        shutil.move(str(source_path), str(dest_path))
+    else:
+        with open(dest_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        source_path.unlink(missing_ok=True)
+
+    print(f"Restored {source_path} to {dest_path}")
+    return str(dest_path)
 
 
 def move_files_back_to_scope_questions():
@@ -104,35 +172,70 @@ def move_files_back_to_scope_questions():
 
 
 def main():
-    try:
-        pending_urls = get_scope_questions_pending()
-        total = len(pending_urls)
+    pending_files = get_scope_questions_pending_files()
+    total = sum(
+        1
+        for _, data in pending_files
+        for item in data
+        if isinstance(item, dict) and item.get("url") and not item.get("questions_generated")
+    )
 
-        if total == 0:
-            print("No pending reports to generate")
+    if total == 0:
+        print("No pending reports to generate")
+        return
+
+    print(f"Found {total} URLs needing reports")
+
+    counter = 0
+    generated_files = 0
+    restored_files = []
+    max_reports = batch_limit(500)
+    report = get_questions_runner_class()(teardown=True)
+
+    for json_file, data in pending_files:
+        restore_file = False
+
+        for item in data:
+            if not isinstance(item, dict) or not item.get("url") or item.get("questions_generated"):
+                continue
+
+            if counter >= max_reports:
+                restore_file = True
+                break
+
+            url = item["url"]
+            print(f"[{counter + 1}/{total}] Generating report for: {url}")
+            try:
+                saved_count = report.get_questions(url)
+            except Exception as e:
+                print(f"\n!!! ERROR while generating {url}: {e}")
+                restore_file = True
+                continue
+
+            item["questions_generated"] = True
+            counter += 1
+            generated_files += saved_count or 0
+
+        remaining = [
+            item
+            for item in data
+            if isinstance(item, dict) and item.get("url") and not item.get("questions_generated")
+        ]
+        if remaining or restore_file:
+            restored_files.append(restore_pending_file_to_scope_questions(json_file, data))
         else:
-            print(f"Found {total} URLs needing reports")
+            Path(json_file).unlink(missing_ok=True)
+            print(f"Completed and removed pending file {json_file}")
 
-            counter = 0
-            max_reports = batch_limit(500)
-            report = GetQuestions(teardown=True)
-            for i, url in enumerate(pending_urls):
-                print(f"[{i + 1}/{total}] Generating report for: {url}")
-                report.get_questions(url)
-                counter += 1
-                if counter >= max_reports:
-                    break
+        if counter >= max_reports:
+            break
 
-            print(f"\n=== Completed {total} reports ===")
+    if generated_files == 0:
+        raise SystemExit("No question output was generated; pending files were restored to scope_questions")
 
-    except Exception as e:
-        print(f"\n!!! ERROR: {e}")
-        print("Attempting to move files back to automation directory...")
-        moved = move_files_back_to_scope_questions()
-        if moved:
-            print(f"Moved {len(moved)} files back to automation directory")
-        else:
-            print("No files were moved back")
+    print(f"\n=== Completed {counter} reports into {generated_files} question files ===")
+    if restored_files:
+        print(f"Restored {len(restored_files)} pending files for a later retry")
 
 
 
