@@ -1,0 +1,71 @@
+{
+  "schema_version": "upv2-past-live-hack-seed-v1",
+  "seed_type": "past_live_hack",
+  "seed_id": "past-live-hack:poly_network:authorization_logic_failure:bsc:2021",
+  "title": "Poly Network authorization logic failure historical bridge incident",
+  "source": {
+    "name": "SlowMist Hacked Bridge category",
+    "url": "https://hacked.slowmist.io/?c=Bridge&page=4",
+    "reference_url": "https://en.wikipedia.org/wiki/Poly_Network_exploit",
+    "chain": "bsc",
+    "incident_date": "2021-08-10",
+    "slowmist_category": "Bridge",
+    "slowmist_index": 66
+  },
+  "historical_exploit": {
+    "root_primitive": "authorization_logic_failure",
+    "attack_summary": "Poly Network, a cross-chain interoperability protocol, said it was attacked, and a total of more than 610 million US dollars were transferred to 3 addresses. Among them, the funds transferred to Binance smart chain addresses starting with 0x0D6e2 exceeded 250 million US dollars, and they were transferred to the ether starting with 0xC8a65. There are over 270 million U.S. dollars in workshop addresses, and over 85 million U.S. dollars in transfers to Polygon addresses. Affected by this, the large amount of assets in the O3 Swap cross-chain pool was transferred out, and the official is investigating.With the efforts of many parties, the hackers have now returned tokens worth 342 million U.S. dollars.",
+    "attacker_profile": "External attacker or unprivileged caller as described by the SlowMist incident row; exact actor permissions must be re-verified before reporting.",
+    "victim_or_protocol_loss": "$ 613,062,100.7",
+    "preconditions": [
+      "A bridge, cross-chain router, gateway, wrapped-asset minter, liquidity pool, or validator/proof path accepts attacker-controlled message, proof, signature, transaction, deposit, configuration, or accounting input.",
+      "The accepted input releases existing bridge-held value, mints unbacked wrapped assets, miscredits a deposit, or lets a caller move assets beyond entitlement.",
+      "The target mapping must be reachable without relying on privileged key compromise, DNS/frontend phishing, social-account compromise, or pure rug-pull behavior."
+    ]
+  },
+  "value_path": {
+    "asset_or_reward": "bridge-held assets, wrapped assets, bridge liquidity, withdrawals, refunds, or backed cross-chain liabilities",
+    "how_value_was_extracted": "Poly Network, a cross-chain interoperability protocol, said it was attacked, and a total of more than 610 million US dollars were transferred to 3 addresses. Among them, the funds transferred to Binance smart chain addresses starting with 0x0D6e2 exceeded 250 million US dollars, and they were transferred to the ether starting with 0xC8a65. There are over 270 million U.S. dollars in workshop addresses, and over 85 million U.S. dollars in transfers to Polygon addresses. Affected by this, the large amount of assets in the O3 Swap cross-chain pool was transferred out, and the official is investigating.With the efforts of many parties, the hackers have now returned tokens worth 342 million U.S. dollars.",
+    "why_it_paid": "The historical row describes real loss, attempted bridge theft, unbacked minting, unauthorized withdrawal, or bridge-accounting failure that can be useful only if BridgeIndex has a matching current live-value extraction path.",
+    "relevant_function_names": []
+  },
+  "mapping": {
+    "targeted_scope": "fund extraction or reward extraction",
+    "why_this_might_map": "BridgeIndex exposes bridge deposits, bot-gas accounting, withdrawal creation/approval/execution, refunds, token/resource mappings, relayer voting, and proposal execution. This historical primitive is useful only if it maps to extracting current BNB/USDT ledger value or backed bridge liabilities from the deployed BridgeIndex system.",
+    "candidate_surfaces": [
+      "deposit",
+      "depositWithBotGas",
+      "Bridge.deposit",
+      "createWithdraw",
+      "approveWithdraw",
+      "executeWithdraw",
+      "voteProposal",
+      "executeProposal",
+      "execute",
+      "markSourceRefunded",
+      "adminRefund",
+      "resource/token mapping",
+      "fee and bot-gas accounting"
+    ],
+    "must_bind_to_live_value": true
+  },
+  "scan_directive": {
+    "mode": "historical_pattern_scan",
+    "must_reject_if_admin_only": true,
+    "must_reject_if_future_deposit_dependent": true,
+    "must_reject_if_unbacked_reward_only": true,
+    "must_reject_if_pure_key_or_frontend_compromise": true
+  },
+  "tags": [
+    "slowmist",
+    "bridge",
+    "authorization-logic-failure",
+    "historical-pattern",
+    "fund-extraction"
+  ],
+  "notes": [
+    "SlowMist attack method: Permission Stolen.",
+    "Selected for scanned because: cross-chain permission/authorization logic compromise, not phishing",
+    "This seed is not proof that BridgeIndex is vulnerable; Workflow 7 must reject it unless the primitive maps to non-admin extraction of a current live ledger row."
+  ]
+}

@@ -6,8 +6,43 @@ import json
 from typing import Any, Dict
 
 
+LIVE_VALUE_BINDING: Dict[str, Any] = {
+    "ledger_type": "live_asset_ledger | reward_liability_ledger",
+    "ledger_index": 0,
+    "asset_address": "",
+    "asset_symbol": "",
+    "holder_contract": "",
+    "holder_role": "",
+    "current_balance_raw": "0",
+    "current_balance_source": "",
+    "current_block_number": 0,
+    "current_block_hash": "",
+    "json_source_path": "",
+}
+
+ATTACKER_VALUE_DELTA: Dict[str, Any] = {
+    "asset_address": "",
+    "before_raw": "0",
+    "after_raw": "0",
+    "delta_raw": "0",
+    "delta_is_positive": False,
+    "why_beyond_entitlement": "",
+}
+
+LIVE_BALANCE_HARD_GATES: Dict[str, Any] = {
+    "asset_currently_present": False,
+    "asset_balance_nonzero": False,
+    "asset_source_matches_live_context": False,
+    "live_context_fresh": False,
+    "attacker_can_trigger_now": False,
+    "extraction_path_targets_that_asset": False,
+    "not_future_deposit_dependent": False,
+    "not_unbacked_reward_dependent": False,
+}
+
+
 PROOF_GATE_CONTRACT: Dict[str, Any] = {
-    "schema_version": "proof-gate-v1",
+    "schema_version": "proof-gate-v2",
     "verdict": "REJECT | NEEDS_LOCAL_PROOF | HIGH_CONFIDENCE_CANDIDATE",
     "gate_question": (
         "Does this exact current protocol, with current live state, allow an "
@@ -71,6 +106,9 @@ PROOF_GATE_CONTRACT: Dict[str, Any] = {
         "victim_or_protocol_loss": "",
         "why_gain_exceeds_entitlement": "",
     },
+    "exploited_live_value": LIVE_VALUE_BINDING,
+    "attacker_value_delta": ATTACKER_VALUE_DELTA,
+    "live_balance_hard_gates": LIVE_BALANCE_HARD_GATES,
     "local_proof_required": {
         "test_type": "unit | fork | invariant | fuzz | manual",
         "test_file_to_add": "",

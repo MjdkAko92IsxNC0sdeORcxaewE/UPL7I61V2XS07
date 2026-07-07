@@ -1,0 +1,90 @@
+name: 0 Refresh Live Context
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_context_path:
+        description: "Optional path to BridgeIndex live_context.json in this runner"
+        required: false
+        default: ""
+      source_context_json:
+        description: "Optional raw BridgeIndex live_context.json content when no source path exists"
+        required: false
+        default: ""
+      smoke_limit:
+        description: "Optional small-run limit for smoke testing"
+        required: false
+        default: ""
+      chain_next:
+        description: "Verify output and dispatch the next workflow"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  refresh-live-context:
+    runs-on: ubuntu-latest
+    env:
+      BOT_SMOKE_LIMIT: ${{ inputs.smoke_limit }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Materialize optional source context JSON
+        if: inputs.source_context_json != ''
+        env:
+          SOURCE_CONTEXT_JSON: ${{ inputs.source_context_json }}
+        run: |
+          python -c 'import os, pathlib; pathlib.Path("setup/source_live_context.json").write_text(os.environ["SOURCE_CONTEXT_JSON"], encoding="utf-8")'
+
+      - name: Refresh UPV2 live context
+        env:
+          BRIDGEINDEX_LIVE_CONTEXT_PATH: ${{ inputs.source_context_path }}
+        run: python run_refresh_live_context.py --source "${{ inputs.source_context_path }}"
+
+      - name: Validate refreshed context
+        run: python run_validate_live_context.py --context setup/live_context_v2.json --validation-out setup/live_context_validation.json
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add setup/live_context.json setup/live_context_v2.json setup/live_context_history setup/live_context_validation.json
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Refresh UPV2 live context 648guf5868gfj58685f"
+          n=0
+          until [ $n -ge 3 ]; do
+            git pull --rebase origin master
+            if git push origin master; then
+              echo "Push succeeded"
+              break
+            fi
+            n=$((n+1))
+            echo "Push failed, retrying in 5 seconds..."
+            sleep 5
+          done
+
+          if [ $n -eq 3 ]; then
+            echo "Failed to push after 3 attempts"
+            exit 1
+          fi
+
+      - name: Verify and advance chain
+        if: inputs.chain_next == 'true'
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: python workflow_chain.py advance --stage 0 --next-workflow 0_1_validate_live_context.yml --smoke-limit "${{ inputs.smoke_limit }}"

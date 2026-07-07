@@ -46,10 +46,37 @@ jobs:
           pip install selenium webdriver-manager
           pip install -r requirements.txt || echo "No requirements.txt found, skipping"
 
-      - name: Check for scanned files
+      - name: Validate UPV2 live context
+        run: python run_validate_live_context.py --context setup/live_context_v2.json
+
+      - name: Check for Workflow 7 scanned inputs
         id: check_audited
         run: |
-          # Logic to check if there are files to process
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          live_asset = past_hack = legacy_or_unknown = 0
+          for path in sorted(Path("scanned").glob("*")):
+              if not path.is_file() or path.suffix not in {".json", ".md"}:
+                  continue
+              if path.suffix == ".json":
+                  try:
+                      data = json.loads(path.read_text(encoding="utf-8"))
+                  except Exception:
+                      legacy_or_unknown += 1
+                      continue
+                  seed_type = data.get("seed_type") or data.get("schema_version")
+                  if seed_type in {"live_asset_ledger", "upv2-live-asset-scan-seed-v1"}:
+                      live_asset += 1
+                  elif seed_type in {"past_live_hack", "past_live_hack_seed", "historical_live_hack", "historical_exploit_seed", "upv2-past-live-hack-seed-v1"}:
+                      past_hack += 1
+                  else:
+                      legacy_or_unknown += 1
+              else:
+                  legacy_or_unknown += 1
+          print(f"Workflow 7 scanned inputs: live_asset={live_asset}, past_live_hack={past_hack}, legacy_or_unknown={legacy_or_unknown}")
+          PY
           if [ -n "$(find scanned \( -name '*.md' -o -name '*.json' \) | head -n 1)" ]; then
             echo "run_workflow=true" >> $GITHUB_OUTPUT
           else
@@ -70,7 +97,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add .
           
-          git commit -m "Auto-update: collections and reports"
+          git commit -m "Auto-update: collections and reports 648guf5868gfj58685f"
           # Retry logic
           n=0
           until [ $n -ge 3 ]; do
@@ -126,7 +153,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add .
           
-          git commit -m "Auto-update: collections and reports"
+          git commit -m "Auto-update: collections and reports 648guf5868gfj58685f"
           # Retry logic
           n=0
           until [ $n -ge 3 ]; do

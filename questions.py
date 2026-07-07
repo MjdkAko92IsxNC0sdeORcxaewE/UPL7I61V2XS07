@@ -110,20 +110,32 @@ Only output one of these verdicts:
 """
 
 
+def _live_ledger_hard_rule() -> str:
+    return """## UPV2 Live Ledger Hard Rule
+A non-REJECT answer is forbidden unless it names the exact exploited current live asset or backed reward bucket from `live_asset_ledger` or `reward_liability_ledger`, including `ledger_type`, `ledger_index`, `holder_contract`, `asset_address`, `current_balance_raw`, `current_block_number`, `current_block_hash`, and JSON source path or command.
+If no current nonzero live balance or backed reward liability exists, return REJECT even if the code path looks vulnerable.
+Do not reason from imagined TVL, future deposits, future reward accrual, future pool creation, or assumed protocol balances.
+Do not assume funds exist because a function can transfer them, and do not assume rewards exist because a claim/refund/withdrawal function exists.
+Reject any admin-only, finance-only, bridge-role-only, relayer-only, proxy-admin, governance, maintainer, or key-compromise extraction path unless the answer proves an unprivileged attacker can bypass that privilege boundary and trigger the value movement now.
+"""
+
+
 def _live_context_snapshot(max_chars: int = 30000) -> str:
     project_root = Path(__file__).resolve().parent
-    live_context_path = Path(os.environ.get("LIVE_CONTEXT_PATH", project_root / "setup" / "live_context.json"))
-    if not live_context_path.is_absolute():
-        live_context_path = project_root / live_context_path
-
-    candidate_paths = [live_context_path]
-    portal_context_path = project_root.parent / "Portal" / "live_context.json"
-    if portal_context_path not in candidate_paths:
-        candidate_paths.append(portal_context_path)
+    env_path = os.environ.get("LIVE_CONTEXT_PATH")
+    if env_path:
+        candidate_paths = [Path(env_path)]
+    else:
+        candidate_paths = [
+            project_root / "setup" / "live_context_v2.json",
+            project_root / "setup" / "live_context.json",
+        ]
 
     sections = []
     missing_paths = []
     for path in candidate_paths:
+        if not path.is_absolute():
+            path = project_root / path
         if not path.exists():
             missing_paths.append(str(path))
             continue
@@ -151,7 +163,7 @@ For non-REJECT output, list the exact live commands needed and mark missing prec
 """
 
     return f"""## Live Context Snapshot
-Use these live-context sources together. The machine setup context is the canonical DeepWiki seed; the Portal repo context is the freshest target snapshot when present. Reject stale context if target address, implementation, source files, chain, or paid-impact focus do not match the active blueprint.
+Use the machine setup context as the canonical DeepWiki seed. Reject stale context if target address, implementation, source files, chain, or paid-impact focus do not match the active blueprint. Never mix this run with Portal, Sable, or any older protocol context.
 
 {chr(10).join(sections)}
 """
@@ -162,7 +174,7 @@ def question_generator(target_file: str) -> str:
     Generate DeepWiki-compatible audit/fuzzing questions for one target.
 
     target_file format:
-    "'File Name: src/Portal.sol -> Scope: Critical Fund extraction or protocol value drain'"
+    "'File Name: src/contracts/BotBridge.sol -> Scope: Critical Fund extraction or protocol value drain'"
     """
 
     prompt = f"""
@@ -174,6 +186,8 @@ Generate {BLUEPRINT["paid_impact_focus"]} security audit/fuzzing questions for t
 {_blueprint_memory()}
 
 {_live_context_snapshot()}
+
+{_live_ledger_hard_rule()}
 
 Rules:
 * Treat `File Name:` as the exact file/module.
@@ -225,6 +239,8 @@ def audit_format(security_question: str) -> str:
 {_live_context_snapshot()}
 
 {_deepwiki_limitation_gate()}
+
+{_live_ledger_hard_rule()}
 
 ## Rules
 - The referenced {REPO_NAME} file/path exists in the DeepWiki target. Do not say files are missing.
@@ -320,6 +336,8 @@ def validation_format(report: str) -> str:
 
 {_deepwiki_limitation_gate()}
 
+{_live_ledger_hard_rule()}
+
 ## Rules
 - Validate only the submitted claim.
 - Check SECURITY/RESEARCHER/README/NatSpec if available for scope, exclusions, expected behavior, and valid impact classes.
@@ -394,6 +412,15 @@ def scan_format(report: str) -> str:
     """
     Generate a cross-project analog scan prompt.
     """
+    seed = _parse_scanner_seed(report)
+    if seed:
+        seed_type = str(seed.get("seed_type") or seed.get("schema_version") or "")
+        if seed_type == "live_asset_ledger" or seed.get("schema_version") == "upv2-live-asset-scan-seed-v1":
+            return _live_asset_seed_scan_format(seed, report)
+        if seed_type in PAST_LIVE_HACK_SEED_TYPES or seed.get("schema_version") in PAST_LIVE_HACK_SEED_TYPES:
+            return _past_live_hack_seed_scan_format(seed, report)
+        return _unknown_scanner_seed_format(seed, report)
+
     scanned_contract = scanned_report_contract_json()
     prompt = f"""# DEEPWIKI ANALOG SCAN PROMPT
 
@@ -405,6 +432,8 @@ def scan_format(report: str) -> str:
 {_live_context_snapshot()}
 
 {_deepwiki_limitation_gate()}
+
+{_live_ledger_hard_rule()}
 
 ## Access Rules
 - Treat in-scope files as accessible context.
@@ -470,6 +499,144 @@ Use `verdict="REJECT"` unless every `rejection_gates` field can truthfully be se
     return prompt
 
 
+PAST_LIVE_HACK_SEED_TYPES = {
+    "past_live_hack",
+    "past_live_hack_seed",
+    "historical_live_hack",
+    "historical_exploit_seed",
+    "upv2-past-live-hack-seed-v1",
+}
+
+
+def _parse_scanner_seed(report: str) -> dict | None:
+    text = report.strip()
+    if not text.startswith("{"):
+        return None
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _seed_json(seed: dict) -> str:
+    return json.dumps(seed, indent=2, ensure_ascii=False)
+
+
+def _live_asset_seed_scan_format(seed: dict, original: str) -> str:
+    scanned_contract = scanned_report_contract_json()
+    return f"""# DEEPWIKI WORKFLOW 7 LIVE ASSET SEED SCAN
+
+## Scanner Input Type
+`scanned/` item type: `live_asset_ledger`
+
+This is not a past hack report and not a confirmed vulnerability. It is a live-value bucket seed from the current BridgeIndex UPV2 live context. Search only for ways an unprivileged attacker can extract this exact live ledger row beyond entitlement.
+
+## Live Asset Seed JSON
+```json
+{_seed_json(seed)}
+```
+
+{_blueprint_memory()}
+
+{_live_context_snapshot()}
+
+{_deepwiki_limitation_gate()}
+
+{_live_ledger_hard_rule()}
+
+## Required Treatment
+- Treat `ledger_row` and `required_non_reject_binding` as the anchor. Do not switch to another asset unless you return REJECT for this seed.
+- Every non-REJECT answer must copy the same `ledger_type`, `ledger_index`, `asset_address`, `holder_contract`, `current_balance_raw`, `current_block_number`, `current_block_hash`, and `json_source_path` into `exploited_live_value`.
+- Search BridgeIndex code paths that can move, credit, refund, execute, withdraw, reimburse, or over-account this exact holder asset.
+- Include `rejection_gates.not_admin_or_governance=true` only if the path is not admin-only, finance-only, bridge-role-only, relayer-only, proxy-admin, governance, maintainer, or key-compromise based.
+- Return REJECT if the only way to move this asset is privileged, expected behavior, future deposit dependent, unbacked reward dependent, DoS-only, griefing-only, or accounting-only.
+
+## Scanned Report JSON Contract
+{scanned_contract}
+
+## Method
+1. Identify all in-scope functions touching this exact live asset holder or its accounting/liability path.
+2. Test unprivileged reachability first, before impact.
+3. Bind any candidate to the seed's exact ledger row.
+4. Explain why the attacker receives a positive delta beyond entitlement.
+5. Define the local fork/unit test needed to prove the before/after holder and attacker deltas.
+
+Output only valid JSON. Do not wrap in Markdown.
+"""
+
+
+def _past_live_hack_seed_scan_format(seed: dict, original: str) -> str:
+    scanned_contract = scanned_report_contract_json()
+    return f"""# DEEPWIKI WORKFLOW 7 PAST LIVE HACK SEED SCAN
+
+## Scanner Input Type
+`scanned/` item type: `past_live_hack`
+
+This is a historical exploit primitive seed. Use it only as attacker-pattern intelligence. It is not proof that BridgeIndex is vulnerable.
+
+## Past Live Hack Seed JSON
+```json
+{_seed_json(seed)}
+```
+
+{_blueprint_memory()}
+
+{_live_context_snapshot()}
+
+{_deepwiki_limitation_gate()}
+
+{_live_ledger_hard_rule()}
+
+## Required Treatment
+- First extract the historical exploit primitive, attacker preconditions, vulnerable state transition, and value movement.
+- Then map that primitive to BridgeIndex only if it can extract a current live ledger row from `setup/live_context_v2.json`.
+- Every non-REJECT answer must bind to `exploited_live_value` from the current BridgeIndex live ledger, not the historical protocol's balance.
+- Include `rejection_gates.not_admin_or_governance=true` only if the mapped BridgeIndex path is unprivileged and not key/role/governance/admin dependent.
+- Return REJECT when the historical primitive does not map to current BridgeIndex live BNB/USDT/liability extraction.
+
+## Scanned Report JSON Contract
+{scanned_contract}
+
+## Method
+1. Summarize the historical root primitive in `report_identity.external_root_primitive`.
+2. Try the closest BridgeIndex mapping across deposit, bot gas, withdrawal, refund, execute, Vote proposal, resource-token mapping, and fee accounting paths.
+3. Reject weak analogies that do not hit current live value.
+4. Define the exact local test needed to prove or disprove the mapped extraction path.
+
+Output only valid JSON. Do not wrap in Markdown.
+"""
+
+
+def _unknown_scanner_seed_format(seed: dict, original: str) -> str:
+    scanned_contract = scanned_report_contract_json()
+    return f"""# DEEPWIKI WORKFLOW 7 UNKNOWN SCANNER SEED
+
+## Scanner Input Type
+`scanned/` item type: unknown JSON seed
+
+The JSON below is in `scanned/`, but its `seed_type` or `schema_version` is not one of the supported Workflow 7 seed contracts. Return REJECT unless it clearly describes a current BridgeIndex live-value extraction candidate and can be bound to `setup/live_context_v2.json`.
+
+## Unknown Seed JSON
+```json
+{_seed_json(seed)}
+```
+
+{_blueprint_memory()}
+
+{_live_context_snapshot()}
+
+{_deepwiki_limitation_gate()}
+
+{_live_ledger_hard_rule()}
+
+## Scanned Report JSON Contract
+{scanned_contract}
+
+Output only valid JSON. Do not wrap in Markdown.
+"""
+
+
 def proof_gate_format(report: str) -> str:
     """
     Generate the final DeepWiki proof-gate prompt for staged candidates.
@@ -485,6 +652,8 @@ def proof_gate_format(report: str) -> str:
 {_live_context_snapshot()}
 
 {_deepwiki_limitation_gate()}
+
+{_live_ledger_hard_rule()}
 
 ## One Question
 Does this exact current protocol, with current live state, allow an unprivileged attacker to extract funds or rewards beyond entitlement?

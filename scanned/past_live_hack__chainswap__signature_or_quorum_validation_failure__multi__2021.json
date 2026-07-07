@@ -1,0 +1,73 @@
+{
+  "schema_version": "upv2-past-live-hack-seed-v1",
+  "seed_type": "past_live_hack",
+  "seed_id": "past-live-hack:chainswap:signature_or_quorum_validation_failure:multi:2021",
+  "title": "Chainswap signature or quorum validation failure historical bridge incident",
+  "source": {
+    "name": "SlowMist Hacked Bridge category",
+    "url": "https://hacked.slowmist.io/?c=Bridge&page=4",
+    "reference_url": "https://chain-swap.medium.com/chainswap-exploit-11-july-2021-post-mortem-6e4e346e5a32",
+    "chain": "multi",
+    "incident_date": "2021-07-11",
+    "slowmist_category": "Bridge",
+    "slowmist_index": 71
+  },
+  "historical_exploit": {
+    "root_primitive": "signature_or_quorum_validation_failure",
+    "attack_summary": "The cross-chain bridge Chainswap announced the details of the stolen incident on its official blog. A total of 20 project assets were stolen, with a total value of approximately US$4 million. At present, the ChainSwap team has reached a consensus with the affected projects and initially formulated and implemented a compensation plan. According to the project investigation, due to the error in the token cross-chain quota code, the on-chain swap bridge quota is automatically increased by the signature node, the purpose of which is to be more decentralized without manual control. However, due to a logical flaw in the code, this led to a vulnerability that automatically increases the number of invalid addresses that are not whitelisted.",
+    "attacker_profile": "External attacker or unprivileged caller as described by the SlowMist incident row; exact actor permissions must be re-verified before reporting.",
+    "victim_or_protocol_loss": "$ 4,000,000",
+    "preconditions": [
+      "A bridge, cross-chain router, gateway, wrapped-asset minter, liquidity pool, or validator/proof path accepts attacker-controlled message, proof, signature, transaction, deposit, configuration, or accounting input.",
+      "The accepted input releases existing bridge-held value, mints unbacked wrapped assets, miscredits a deposit, or lets a caller move assets beyond entitlement.",
+      "The target mapping must be reachable without relying on privileged key compromise, DNS/frontend phishing, social-account compromise, or pure rug-pull behavior."
+    ]
+  },
+  "value_path": {
+    "asset_or_reward": "bridge-held assets, wrapped assets, bridge liquidity, withdrawals, refunds, or backed cross-chain liabilities",
+    "how_value_was_extracted": "The cross-chain bridge Chainswap announced the details of the stolen incident on its official blog. A total of 20 project assets were stolen, with a total value of approximately US$4 million. At present, the ChainSwap team has reached a consensus with the affected projects and initially formulated and implemented a compensation plan. According to the project investigation, due to the error in the token cross-chain quota code, the on-chain swap bridge quota is automatically increased by the signature node, the purpose of which is to be more decentralized without manual control. However, due to a logical flaw in the code, this led to a vulnerability that automatically increases the number of invalid addresses that are not whitelisted.",
+    "why_it_paid": "The historical row describes real loss, attempted bridge theft, unbacked minting, unauthorized withdrawal, or bridge-accounting failure that can be useful only if BridgeIndex has a matching current live-value extraction path.",
+    "relevant_function_names": [
+      "ChainSwap"
+    ]
+  },
+  "mapping": {
+    "targeted_scope": "fund extraction or reward extraction",
+    "why_this_might_map": "BridgeIndex exposes bridge deposits, bot-gas accounting, withdrawal creation/approval/execution, refunds, token/resource mappings, relayer voting, and proposal execution. This historical primitive is useful only if it maps to extracting current BNB/USDT ledger value or backed bridge liabilities from the deployed BridgeIndex system.",
+    "candidate_surfaces": [
+      "deposit",
+      "depositWithBotGas",
+      "Bridge.deposit",
+      "createWithdraw",
+      "approveWithdraw",
+      "executeWithdraw",
+      "voteProposal",
+      "executeProposal",
+      "execute",
+      "markSourceRefunded",
+      "adminRefund",
+      "resource/token mapping",
+      "fee and bot-gas accounting"
+    ],
+    "must_bind_to_live_value": true
+  },
+  "scan_directive": {
+    "mode": "historical_pattern_scan",
+    "must_reject_if_admin_only": true,
+    "must_reject_if_future_deposit_dependent": true,
+    "must_reject_if_unbacked_reward_only": true,
+    "must_reject_if_pure_key_or_frontend_compromise": true
+  },
+  "tags": [
+    "slowmist",
+    "bridge",
+    "signature-or-quorum-validation-failure",
+    "historical-pattern",
+    "fund-extraction"
+  ],
+  "notes": [
+    "SlowMist attack method: Contract Vulnerability.",
+    "Selected for scanned because: ChainSwap bridge contract vulnerability",
+    "This seed is not proof that BridgeIndex is vulnerable; Workflow 7 must reject it unless the primitive maps to non-admin extraction of a current live ledger row."
+  ]
+}

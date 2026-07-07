@@ -52,6 +52,18 @@ class ChainConfig:
 
 
 CHAIN_CONFIGS: Dict[str, ChainConfig] = {
+    "bsc": ChainConfig(
+        chain="bsc",
+        chain_id=56,
+        native_symbol="BNB",
+        rpc_endpoints=(
+            "env:BSC_RPC_URL",
+            "env:RPC_URL",
+            "https://bsc-dataseed.binance.org",
+            "https://bsc-dataseed1.binance.org",
+            "https://bsc-rpc.publicnode.com",
+        ),
+    ),
     "ethereum": ChainConfig(
         chain="ethereum",
         chain_id=1,
@@ -80,6 +92,7 @@ CHAIN_CONFIGS: Dict[str, ChainConfig] = {
 
 
 EXPLORER_TO_CHAIN = {
+    "bscscan.com": "bsc",
     "etherscan.io": "ethereum",
     "arbiscan.io": "arbitrum",
     "basescan.org": "base",
@@ -88,6 +101,16 @@ EXPLORER_TO_CHAIN = {
 
 
 COMMON_TOKENS: Dict[str, List[Dict[str, Any]]] = {
+    "bsc": [
+        {"symbol": "WBNB", "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", "decimals": 18},
+        {"symbol": "USDT", "address": "0x55d398326f99059fF775485246999027B3197955", "decimals": 18},
+        {"symbol": "USDC", "address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", "decimals": 18},
+        {"symbol": "BUSD", "address": "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56", "decimals": 18},
+        {"symbol": "DAI", "address": "0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3", "decimals": 18},
+        {"symbol": "BTCB", "address": "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", "decimals": 18},
+        {"symbol": "ETH", "address": "0x2170Ed0880ac9A755fd29B2688956BD959F933F8", "decimals": 18},
+        {"symbol": "CAKE", "address": "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", "decimals": 18},
+    ],
     "ethereum": [
         {"symbol": "USDC", "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "decimals": 6},
         {"symbol": "USDT", "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "decimals": 6},
@@ -185,7 +208,21 @@ def parse_domain_chain(host: str) -> Optional[str]:
         return "arbitrum"
     if h.endswith(".basescan.org"):
         return "base"
+    if h.endswith(".bscscan.com"):
+        return "bsc"
     return None
+
+
+def resolve_rpc_endpoints(endpoints: Tuple[str, ...]) -> Tuple[str, ...]:
+    resolved = []
+    for endpoint in endpoints:
+        if endpoint.startswith("env:"):
+            value = os.getenv(endpoint[4:])
+            if value:
+                resolved.append(value)
+            continue
+        resolved.append(endpoint)
+    return tuple(dict.fromkeys(resolved))
 
 
 def parse_scope_item(item: str) -> Tuple[Optional[str], Optional[str]]:
@@ -1841,7 +1878,7 @@ def scan_chain_scope(
     mapping_time_budget_s: float,
     etherscan_api_key: Optional[str],
 ) -> Dict[str, Any]:
-    client = RpcClient(chain_cfg.rpc_endpoints)
+    client = RpcClient(resolve_rpc_endpoints(chain_cfg.rpc_endpoints))
     block_number, _ = get_block_and_timestamp(client)
     contracts = []
 

@@ -17,6 +17,22 @@ class Stage:
 
 
 STAGES = {
+    "0": Stage(
+        output_globs=(
+            "setup/live_context_v2.json",
+            "setup/live_context.json",
+            "setup/live_context_history/*.json",
+        ),
+        final_message="Live context refreshed. Run stage 0.1 to validate it before any DeepWiki stage.",
+    ),
+    "0.1": Stage(
+        output_globs=("setup/live_context_validation.json",),
+        final_message="Live context validated. Run stage 0.2 to materialize Workflow 7 scanner seeds.",
+    ),
+    "0.2": Stage(
+        output_globs=("scanned/live_asset_seed__*.json",),
+        final_message="Live asset seeds are ready for Workflow 7 scanner automation. Continue with Workflow 1 for regular scoped question generation.",
+    ),
     "1": Stage(output_globs=("scope/*.json",)),
     "2": Stage(output_globs=("scope_questions/*.json",), remaining_globs=("scope/*.json",)),
     "3": Stage(output_globs=("question/*.json",), remaining_globs=("scope_questions/*.json",)),
@@ -52,7 +68,8 @@ STAGES = {
             "deepwiki_candidates/*.json",
             "deepwiki_unknown/*.md",
             "deepwiki_unknown/*.json",
-            "validated/*.md",
+            "rejected_by_live_gate/*.md",
+            "rejected_by_live_gate/*.json",
         ),
         remaining_globs=("validated_questions/*.json",),
         final_message="Validation reports are staged. Run local proof before submission.",

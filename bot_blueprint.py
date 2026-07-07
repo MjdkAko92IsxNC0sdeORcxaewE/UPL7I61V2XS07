@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 
-DEFAULT_BLUEPRINT_PATH = Path(__file__).resolve().parent / "blueprints" / "portal_fund_reward.json"
+DEFAULT_BLUEPRINT_PATH = Path(__file__).resolve().parent / "blueprints" / "bridgeindex_fund_reward.json"
 
 
 class BlueprintError(ValueError):

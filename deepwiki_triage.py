@@ -5,6 +5,8 @@ import uuid
 from pathlib import Path
 from typing import Literal
 
+from live_context_schema import LiveContextError, load_and_validate, validate_candidate_live_binding
+
 
 Verdict = Literal["reject", "needs_local_proof", "high_confidence_candidate", "unknown"]
 
@@ -71,14 +73,58 @@ def directory_for_verdict(verdict: Verdict) -> Path:
     return Path(os.environ.get("DEEPWIKI_UNKNOWN_DIR", "deepwiki_unknown"))
 
 
+def rejected_by_live_gate_dir() -> Path:
+    return Path(os.environ.get("REJECTED_BY_LIVE_GATE_DIR", "rejected_by_live_gate"))
+
+
+def live_context_path() -> Path:
+    return Path(os.environ.get("LIVE_CONTEXT_V2_PATH") or os.environ.get("LIVE_CONTEXT_PATH") or "setup/live_context_v2.json")
+
+
+def live_gate_rejection_reason(parsed: dict | None, verdict: Verdict) -> str | None:
+    if verdict not in ("needs_local_proof", "high_confidence_candidate"):
+        return None
+    if parsed is None:
+        return "non-REJECT response is not strict JSON and cannot bind to live_asset_ledger"
+    try:
+        context = load_and_validate(live_context_path())
+    except (OSError, LiveContextError, json.JSONDecodeError) as exc:
+        return f"live context unavailable or invalid: {exc}"
+    ok, reason = validate_candidate_live_binding(parsed, context)
+    return None if ok else reason
+
+
 def save_deepwiki_response(content: str, source_url: str, prefix: str = "audit") -> Path | None:
     verdict = classify_deepwiki_response(content)
+    parsed = parse_json_response(content)
+    live_gate_reason = live_gate_rejection_reason(parsed, verdict)
+    if live_gate_reason:
+        destination_dir = rejected_by_live_gate_dir()
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        if parsed is not None:
+            parsed["deepwiki_source_url"] = source_url
+            parsed["deepwiki_verdict"] = verdict
+            parsed["live_gate_forced_reject"] = True
+            parsed["live_gate_rejection_reason"] = live_gate_reason
+            filename = destination_dir / f"{prefix}_{uuid.uuid4().hex}.json"
+            filename.write_text(json.dumps(parsed, indent=2), encoding="utf-8")
+            return filename
+
+        filename = destination_dir / f"{prefix}_{uuid.uuid4().hex}.md"
+        header = (
+            f"<!-- deepwiki_source_url: {source_url} -->\n"
+            f"<!-- deepwiki_verdict: {verdict} -->\n"
+            "<!-- live_gate_forced_reject: true -->\n"
+            f"<!-- live_gate_rejection_reason: {live_gate_reason} -->\n\n"
+        )
+        filename.write_text(header + content, encoding="utf-8")
+        return filename
+
     if verdict == "reject" and not os.environ.get("SAVE_REJECTED_DEEPWIKI"):
         return None
 
     destination_dir = directory_for_verdict(verdict)
     destination_dir.mkdir(parents=True, exist_ok=True)
-    parsed = parse_json_response(content)
     if parsed is not None:
         parsed["deepwiki_source_url"] = source_url
         parsed["deepwiki_verdict"] = verdict

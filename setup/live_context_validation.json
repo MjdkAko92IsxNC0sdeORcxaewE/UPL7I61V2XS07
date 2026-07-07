@@ -1,0 +1,13 @@
+{
+  "schema_version": "upv2-live-context-validation-v1",
+  "context_path": "setup/live_context_v2.json",
+  "valid": true,
+  "project_name": "BridgeIndex",
+  "source_repo": "incjanta/BridgeIndex",
+  "chain": "bsc",
+  "chain_id": 56,
+  "block_number": 108581678,
+  "block_hash": "0x122165d97b1c836f8a4a62c475b2c379cc8c57299f6f92926f00c54b1f8f3f25",
+  "live_asset_ledger_count": 2,
+  "reward_liability_ledger_count": 0
+}

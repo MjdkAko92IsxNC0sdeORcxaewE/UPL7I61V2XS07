@@ -1,0 +1,74 @@
+{
+  "schema_version": "upv2-past-live-hack-seed-v1",
+  "seed_type": "past_live_hack",
+  "seed_id": "past-live-hack:synapse_protocol:signature_or_quorum_validation_failure:multi:2021",
+  "title": "Synapse Protocol signature or quorum validation failure historical bridge incident",
+  "source": {
+    "name": "SlowMist Hacked Bridge category",
+    "url": "https://hacked.slowmist.io/?c=Bridge&page=4",
+    "reference_url": "https://synapseprotocol.medium.com/11-06-2021-post-mortem-of-synapse-metapool-exploit-3003b4df4ef4",
+    "chain": "multi",
+    "incident_date": "2021-11-06",
+    "slowmist_category": "Bridge",
+    "slowmist_index": 63
+  },
+  "historical_exploit": {
+    "root_primitive": "signature_or_quorum_validation_failure",
+    "attack_summary": "The asset cross-chain bridge launched by the cross-chain protocol Synapse Protocol is suspected to have loopholes, and the attacker manipulated the virtual price of nUSD Metapool, reducing it by about 12.5%. Ultimately, although the funds were withdrawn from the metapool itself, the funds were not lost. When the validator is offline, the address that took the funds from the LP tries to move the funds through the bridge, so the transaction has not yet been processed. However, the validators unanimously decided not to process this transaction because it was malicious to the LP and the entire network: as a result, ~$8.2 million in nUSD was not minted to the attacker's address on the target chain. The nUSD will be returned to the affected Avalanche LPs instead.",
+    "attacker_profile": "External attacker or unprivileged caller as described by the SlowMist incident row; exact actor permissions must be re-verified before reporting.",
+    "victim_or_protocol_loss": "-",
+    "preconditions": [
+      "A bridge, cross-chain router, gateway, wrapped-asset minter, liquidity pool, or validator/proof path accepts attacker-controlled message, proof, signature, transaction, deposit, configuration, or accounting input.",
+      "The accepted input releases existing bridge-held value, mints unbacked wrapped assets, miscredits a deposit, or lets a caller move assets beyond entitlement.",
+      "The target mapping must be reachable without relying on privileged key compromise, DNS/frontend phishing, social-account compromise, or pure rug-pull behavior."
+    ]
+  },
+  "value_path": {
+    "asset_or_reward": "bridge-held assets, wrapped assets, bridge liquidity, withdrawals, refunds, or backed cross-chain liabilities",
+    "how_value_was_extracted": "The asset cross-chain bridge launched by the cross-chain protocol Synapse Protocol is suspected to have loopholes, and the attacker manipulated the virtual price of nUSD Metapool, reducing it by about 12.5%. Ultimately, although the funds were withdrawn from the metapool itself, the funds were not lost. When the validator is offline, the address that took the funds from the LP tries to move the funds through the bridge, so the transaction has not yet been processed. However, the validators unanimously decided not to process this transaction because it was malicious to the LP and the entire network: as a result, ~$8.2 million in nUSD was not minted to the attacker's address on the target chain. The nUSD will be returned to the affected Avalanche LPs instead.",
+    "why_it_paid": "The historical row describes real loss, attempted bridge theft, unbacked minting, unauthorized withdrawal, or bridge-accounting failure that can be useful only if BridgeIndex has a matching current live-value extraction path.",
+    "relevant_function_names": [
+      "nUSD",
+      "LPs"
+    ]
+  },
+  "mapping": {
+    "targeted_scope": "fund extraction or reward extraction",
+    "why_this_might_map": "BridgeIndex exposes bridge deposits, bot-gas accounting, withdrawal creation/approval/execution, refunds, token/resource mappings, relayer voting, and proposal execution. This historical primitive is useful only if it maps to extracting current BNB/USDT ledger value or backed bridge liabilities from the deployed BridgeIndex system.",
+    "candidate_surfaces": [
+      "deposit",
+      "depositWithBotGas",
+      "Bridge.deposit",
+      "createWithdraw",
+      "approveWithdraw",
+      "executeWithdraw",
+      "voteProposal",
+      "executeProposal",
+      "execute",
+      "markSourceRefunded",
+      "adminRefund",
+      "resource/token mapping",
+      "fee and bot-gas accounting"
+    ],
+    "must_bind_to_live_value": true
+  },
+  "scan_directive": {
+    "mode": "historical_pattern_scan",
+    "must_reject_if_admin_only": true,
+    "must_reject_if_future_deposit_dependent": true,
+    "must_reject_if_unbacked_reward_only": true,
+    "must_reject_if_pure_key_or_frontend_compromise": true
+  },
+  "tags": [
+    "slowmist",
+    "bridge",
+    "signature-or-quorum-validation-failure",
+    "historical-pattern",
+    "fund-extraction"
+  ],
+  "notes": [
+    "SlowMist attack method: Price Manipulation.",
+    "Selected for scanned because: bridge metapool virtual-price manipulation pattern",
+    "This seed is not proof that BridgeIndex is vulnerable; Workflow 7 must reject it unless the primitive maps to non-admin extraction of a current live ledger row."
+  ]
+}

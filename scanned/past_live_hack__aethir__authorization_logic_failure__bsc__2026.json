@@ -1,0 +1,78 @@
+{
+  "schema_version": "upv2-past-live-hack-seed-v1",
+  "seed_type": "past_live_hack",
+  "seed_id": "past-live-hack:aethir:authorization_logic_failure:bsc:2026",
+  "title": "Aethir authorization logic failure historical bridge incident",
+  "source": {
+    "name": "SlowMist Hacked Bridge category",
+    "url": "https://hacked.slowmist.io/?c=Bridge",
+    "reference_url": "https://crypto.news/aethir-contains-bridge-hack-while-losses-stay-below-90k/",
+    "chain": "bsc",
+    "incident_date": "2026-04-09",
+    "slowmist_category": "Bridge",
+    "slowmist_index": 16
+  },
+  "historical_exploit": {
+    "root_primitive": "authorization_logic_failure",
+    "attack_summary": "Aethir's cross-chain bridge contracts (primarily AethirOFTAdapter and Ethereum-related bridging contracts) were targeted in an exploit. The attacker attempted to drain funds by exploiting access control or ownership transfer vulnerabilities (e.g., transferOwnership issues), involving chains like BNB Chain. The Aethir team quickly detected the anomaly, promptly disconnected the compromised contracts, and collaborated with major exchanges (Binance, Upbit, Bithumb, etc.) to blacklist attacker wallets, effectively containing further damage. The main ATH token supply on Ethereum remained intact, and other bridges like ETH-ARB on Squid were unaffected. Initial estimates put potential losses around $400,000, but user impact was limited to under $90,000. The project promised a full compensation plan.",
+    "attacker_profile": "External attacker or unprivileged caller as described by the SlowMist incident row; exact actor permissions must be re-verified before reporting.",
+    "victim_or_protocol_loss": "$ 90,000",
+    "preconditions": [
+      "A bridge, cross-chain router, gateway, wrapped-asset minter, liquidity pool, or validator/proof path accepts attacker-controlled message, proof, signature, transaction, deposit, configuration, or accounting input.",
+      "The accepted input releases existing bridge-held value, mints unbacked wrapped assets, miscredits a deposit, or lets a caller move assets beyond entitlement.",
+      "The target mapping must be reachable without relying on privileged key compromise, DNS/frontend phishing, social-account compromise, or pure rug-pull behavior."
+    ]
+  },
+  "value_path": {
+    "asset_or_reward": "bridge-held assets, wrapped assets, bridge liquidity, withdrawals, refunds, or backed cross-chain liabilities",
+    "how_value_was_extracted": "Aethir's cross-chain bridge contracts (primarily AethirOFTAdapter and Ethereum-related bridging contracts) were targeted in an exploit. The attacker attempted to drain funds by exploiting access control or ownership transfer vulnerabilities (e.g., transferOwnership issues), involving chains like BNB Chain. The Aethir team quickly detected the anomaly, promptly disconnected the compromised contracts, and collaborated with major exchanges (Binance, Upbit, Bithumb, etc.) to blacklist attacker wallets, effectively containing further damage. The main ATH token supply on Ethereum remained intact, and other bridges like ETH-ARB on Squid were unaffected. Initial estimates put potential losses around $400,000, but user impact was limited to under $90,000. The project promised a full compensation plan.",
+    "why_it_paid": "The historical row describes real loss, attempted bridge theft, unbacked minting, unauthorized withdrawal, or bridge-accounting failure that can be useful only if BridgeIndex has a matching current live-value extraction path.",
+    "relevant_function_names": [
+      "AethirOFTAdapter",
+      "transferOwnership",
+      "BNB",
+      "ATH",
+      "ETH",
+      "ARB"
+    ]
+  },
+  "mapping": {
+    "targeted_scope": "fund extraction or reward extraction",
+    "why_this_might_map": "BridgeIndex exposes bridge deposits, bot-gas accounting, withdrawal creation/approval/execution, refunds, token/resource mappings, relayer voting, and proposal execution. This historical primitive is useful only if it maps to extracting current BNB/USDT ledger value or backed bridge liabilities from the deployed BridgeIndex system.",
+    "candidate_surfaces": [
+      "deposit",
+      "depositWithBotGas",
+      "Bridge.deposit",
+      "createWithdraw",
+      "approveWithdraw",
+      "executeWithdraw",
+      "voteProposal",
+      "executeProposal",
+      "execute",
+      "markSourceRefunded",
+      "adminRefund",
+      "resource/token mapping",
+      "fee and bot-gas accounting"
+    ],
+    "must_bind_to_live_value": true
+  },
+  "scan_directive": {
+    "mode": "historical_pattern_scan",
+    "must_reject_if_admin_only": true,
+    "must_reject_if_future_deposit_dependent": true,
+    "must_reject_if_unbacked_reward_only": true,
+    "must_reject_if_pure_key_or_frontend_compromise": true
+  },
+  "tags": [
+    "slowmist",
+    "bridge",
+    "authorization-logic-failure",
+    "historical-pattern",
+    "fund-extraction"
+  ],
+  "notes": [
+    "SlowMist attack method: Smart Contract Vulnerability.",
+    "Selected for scanned because: bridge-contract access-control or ownership-transfer vulnerability",
+    "This seed is not proof that BridgeIndex is vulnerable; Workflow 7 must reject it unless the primitive maps to non-admin extraction of a current live ledger row."
+  ]
+}

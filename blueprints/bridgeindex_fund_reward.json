@@ -1,0 +1,78 @@
+{
+  "max_repo": 10,
+  "source_repo": "incjanta/BridgeIndex",
+  "repo_name": "BridgeIndex",
+  "project_name": "BridgeIndex",
+  "target_label": "BridgeIndex BotBridge BSC proxy at 0x3cd6fb6b0cddd3610f0f4769aa7bb686cd4a4b55",
+  "paid_impact_focus": "fund extraction and reward extraction",
+  "scope_files": [
+    "src/contracts/BotBridge.sol",
+    "src/contracts/Bridge.sol",
+    "src/contracts/Vote.sol",
+    "src/contracts/interface/IBotBridge.sol",
+    "src/contracts/interface/IBridge.sol",
+    "src/contracts/interface/IVote.sol"
+  ],
+  "target_scopes": [
+    "Critical Fund extraction or protocol value drain: any bug that lets an unprivileged user withdraw, refund, execute, redirect, unlock, underpay, over-credit, or otherwise extract current live BNB, USDT, or bridge-held value from the deployed BridgeIndex proxy or dependencies beyond valid entitlement",
+    "Critical Reward extraction or unfair reward access: any bug that lets an unprivileged user overclaim a real bridge fee, refund, withdrawal, gas reimbursement, or other payout liability that is backed by a current nonzero live asset balance"
+  ],
+  "live_context_hint": "BSC proxy 0x3cd6fb6b0cddd3610f0f4769aa7bb686cd4a4b55, implementation 0x1d85a38d4a3ea8a6ae74f185a1df267704e7a748, current proxy BNB and USDT balances, deposit/withdrawal/refund/execution records, resourceId-token mappings, role membership, blacklist/pause state, bot gas configuration, Bridge/voteRef/serverAddress dependencies, and event-derived live liabilities",
+  "context_interfaces": [
+    "src/contracts/interface/IBotBridge.sol",
+    "src/contracts/interface/IBridge.sol",
+    "src/contracts/interface/IVote.sol"
+  ],
+  "protocol_focus": "BridgeIndex is a BSC bridge contract system behind a proxy. The relevant value paths are deposits, bot-gas deposits, withdrawal creation/approval/execution, refunds, token/resource mappings, pause/blacklist checks, and role-gated bridge operations. This campaign only pays for concrete extraction of current live balances or backed bridge liabilities.",
+  "attacker_profile": "unprivileged depositor, withdrawal requester, refund claimant, recipient, receiver contract, bridge user, token user, or external caller interacting through public BridgeIndex entrypoints",
+  "core_invariants": [
+    "attackers must not extract proxy-held BNB, USDT, bridge fees, refunds, withdrawals, reimbursements, or mapped token value beyond valid entitlement",
+    "every deposit, withdrawal, refund, and execute path must reconcile against current live proxy balances and recorded liabilities",
+    "resourceId-token mappings, bridge pause flags, token pause flags, blacklist checks, role checks, and nonce/accounting state must not be bypassable by alternate entrypoints or malformed calldata",
+    "bot gas accounting, min fee logic, min/max amount checks, and refund math must not let an attacker receive excess value or avoid required payment",
+    "admin, finance, relayer, and bridge role functions matter only if an unprivileged path can bypass or prepare unauthorized value movement without key compromise",
+    "external token behavior or bridge dependency behavior only counts when BridgeIndex itself accepts attacker-controlled sequencing or data that causes an overpayment or unauthorized transfer"
+  ],
+  "high_value_surfaces": [
+    "payable deposit paths: deposit, depositWithBotGas, ReceivedEth, DepositEvent",
+    "withdrawal paths: withdrawalCreate, withdrawalApprove, execute, markExecutionConfirmed, CreatedWithdrawal, ApprovedWithdrawal, ExecuteEvent, ExecutedWithdrawal",
+    "refund paths: adminRefund, Refunded, refundDatas, fee and bot-gas reimbursement accounting",
+    "token/resource configuration: SetTokenEvent, getTokenPauseByResourceId, token address/resourceId mappings, token pause flags",
+    "role and policy controls: ADMIN_ROLE, BRIDGE_ROLE, FINANCE_ROLE, RELAYER_ROLE, hasRole, grantRole, revokeRole, blacklist, getBridgePause",
+    "dependency addresses: Bridge, voteRef, serverAddress, proxy admin, implementation, token contracts, and any event-derived bridge asset holders",
+    "math and state ordering around amount, fee, destination chain id, localNonce, execution confirmation, and refund status"
+  ],
+  "impact_mapping": [
+    "Fund extraction: attacker receives BNB, USDT, mapped token funds, refunds, withdrawals, bridge fees, or reimbursements without the required deposit, authorization, or entitlement",
+    "Reward extraction: attacker overclaims a real fee/refund/reimbursement/withdrawal payout that is backed by current live BridgeIndex balances",
+    "Insolvency with extraction: attacker creates or uses a bridge accounting mismatch then withdraws, refunds, executes, or claims more value than funded",
+    "Unauthorized redirection: funds or backed liabilities move to an attacker-controlled recipient, token, bridge, server, vote reference, or dependency without valid authorization",
+    "Accounting corruption only counts if it leads to attacker-controlled over-withdrawal, over-refund, over-execution, over-crediting, or backed payout overclaim"
+  ],
+  "known_rejection_memory": [
+    "Reject DoS, pause, blacklist, liveness, stuck transaction, gas-only, griefing, and temporary lock claims unless the same path transfers excess live value to the attacker.",
+    "Reject admin-only, finance-only, bridge-role-only, relayer-only, proxy-admin compromise, governance/key compromise, or maintainer configuration mistakes. A current live balance does not make privileged extraction reportable unless an unprivileged attacker can bypass that privilege boundary and trigger the value movement.",
+    "Reject generic reward-pool claims unless a current bridge fee, refund, withdrawal, or reimbursement liability is backed by a nonzero live asset ledger row.",
+    "Reject future-deposit-only claims, future bridge-liquidity assumptions, imagined TVL, and any candidate that cannot name the current live BNB/USDT/liability ledger row it extracts.",
+    "Reject source-only theories that do not connect to the live proxy address, implementation ABI, reachable entrypoint, concrete live value movement, and local proof plan."
+  ],
+  "live_balance_policy": {
+    "require_current_nonzero_balance": true,
+    "reject_future_deposit_only": true,
+    "reject_unbacked_reward_only": true,
+    "max_context_age_blocks": 3000,
+    "allowed_ledger_types": [
+      "native",
+      "erc20",
+      "reward_backing"
+    ]
+  },
+  "asset_discovery": {
+    "scan_target": true,
+    "scan_proxy_implementation": true,
+    "scan_dependencies": true,
+    "scan_transfer_logs": true,
+    "scan_event_derived_pools": true,
+    "scan_reward_liabilities": true
+  }
+}

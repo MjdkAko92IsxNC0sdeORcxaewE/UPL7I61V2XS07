@@ -27,3 +27,11 @@ __pycache__/
 _validated_questions
 
 key.json
+
+# Internal upgrade/operator notes. These describe the machine setup and should
+# stay local-only instead of being deployed into the GitHub audit runner repo.
+UPV2Upgrade.md
+UPV2Upgrade_BridgeIndex_Addendum.md
+SCANNED_INPUT_CONTRACT.md
+DEEPWIKI_UPGRADE_PLAN.md
+check.md

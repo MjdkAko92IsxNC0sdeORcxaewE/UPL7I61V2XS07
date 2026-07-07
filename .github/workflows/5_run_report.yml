@@ -45,6 +45,9 @@ jobs:
           pip install selenium webdriver-manager
           pip install -r requirements.txt || echo "No requirements.txt found, skipping"
 
+      - name: Validate UPV2 live context
+        run: python run_validate_live_context.py --context setup/live_context_v2.json
+
       - name: Check for automation files
         id: check_automations
         run: |
@@ -70,7 +73,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add .
           
-          git commit -m "Auto-update: collections and reports"
+          git commit -m "Auto-update: collections and reports 648guf5868gfj58685f"
           # Retry logic
           n=0
           until [ $n -ge 3 ]; do
@@ -129,7 +132,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add .
           
-          git commit -m "Auto-update: collections and reports"
+          git commit -m "Auto-update: collections and reports 648guf5868gfj58685f"
           # Retry logic
           n=0
           until [ $n -ge 3 ]; do

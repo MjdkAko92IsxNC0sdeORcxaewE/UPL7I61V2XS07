@@ -1,0 +1,77 @@
+{
+  "schema_version": "upv2-past-live-hack-seed-v1",
+  "seed_type": "past_live_hack",
+  "seed_id": "past-live-hack:butter_bridge:message_hash_collision:eth:2026",
+  "title": "Butter Bridge message hash collision historical bridge incident",
+  "source": {
+    "name": "SlowMist Hacked Bridge category",
+    "url": "https://hacked.slowmist.io/?c=Bridge",
+    "reference_url": "https://ourcryptotalk.com/news/butter-bridge-exploit-mints-1-quadrillion-mapo-tokens",
+    "chain": "eth",
+    "incident_date": "2026-05-20",
+    "slowmist_category": "Bridge",
+    "slowmist_index": 7
+  },
+  "historical_exploit": {
+    "root_primitive": "message_hash_collision",
+    "attack_summary": "The Butter Bridge V3.1 (part of MAP Protocol and Butter Network) was exploited. An attacker used a vulnerability in the OmniServiceProxy contract\u2019s retry message verification logic, specifically an abi.encodePacked hash collision with dynamic-bytes fields. This allowed forging a cross-chain retry message that bypassed authentication, resulting in the minting of approximately 1 quadrillion (10^15) MAPO tokens (about 4.8 million times the legitimate ~208 million circulating supply). The attacker dumped ~1 billion fake MAPO into the Uniswap V4 ETH/MAPO pool, extracting roughly $180,000 in liquidity (\u224852.21 ETH). The teams immediately paused the bridge and related swaps. User funds in pending swaps are safe, and a patch/audit/redeployment is in progress. The remaining ~999 trillion fake tokens stay in the attacker\u2019s wallet, posing ongoing dilution risk.",
+    "attacker_profile": "External attacker or unprivileged caller as described by the SlowMist incident row; exact actor permissions must be re-verified before reporting.",
+    "victim_or_protocol_loss": "$ 180,000",
+    "preconditions": [
+      "A bridge, cross-chain router, gateway, wrapped-asset minter, liquidity pool, or validator/proof path accepts attacker-controlled message, proof, signature, transaction, deposit, configuration, or accounting input.",
+      "The accepted input releases existing bridge-held value, mints unbacked wrapped assets, miscredits a deposit, or lets a caller move assets beyond entitlement.",
+      "The target mapping must be reachable without relying on privileged key compromise, DNS/frontend phishing, social-account compromise, or pure rug-pull behavior."
+    ]
+  },
+  "value_path": {
+    "asset_or_reward": "bridge-held assets, wrapped assets, bridge liquidity, withdrawals, refunds, or backed cross-chain liabilities",
+    "how_value_was_extracted": "The Butter Bridge V3.1 (part of MAP Protocol and Butter Network) was exploited. An attacker used a vulnerability in the OmniServiceProxy contract\u2019s retry message verification logic, specifically an abi.encodePacked hash collision with dynamic-bytes fields. This allowed forging a cross-chain retry message that bypassed authentication, resulting in the minting of approximately 1 quadrillion (10^15) MAPO tokens (about 4.8 million times the legitimate ~208 million circulating supply). The attacker dumped ~1 billion fake MAPO into the Uniswap V4 ETH/MAPO pool, extracting roughly $180,000 in liquidity (\u224852.21 ETH). The teams immediately paused the bridge and related swaps. User funds in pending swaps are safe, and a patch/audit/redeployment is in progress. The remaining ~999 trillion fake tokens stay in the attacker\u2019s wallet, posing ongoing dilution risk.",
+    "why_it_paid": "The historical row describes real loss, attempted bridge theft, unbacked minting, unauthorized withdrawal, or bridge-accounting failure that can be useful only if BridgeIndex has a matching current live-value extraction path.",
+    "relevant_function_names": [
+      "MAP",
+      "OmniServiceProxy",
+      "encodePacked",
+      "MAPO",
+      "ETH"
+    ]
+  },
+  "mapping": {
+    "targeted_scope": "fund extraction or reward extraction",
+    "why_this_might_map": "BridgeIndex exposes bridge deposits, bot-gas accounting, withdrawal creation/approval/execution, refunds, token/resource mappings, relayer voting, and proposal execution. This historical primitive is useful only if it maps to extracting current BNB/USDT ledger value or backed bridge liabilities from the deployed BridgeIndex system.",
+    "candidate_surfaces": [
+      "deposit",
+      "depositWithBotGas",
+      "Bridge.deposit",
+      "createWithdraw",
+      "approveWithdraw",
+      "executeWithdraw",
+      "voteProposal",
+      "executeProposal",
+      "execute",
+      "markSourceRefunded",
+      "adminRefund",
+      "resource/token mapping",
+      "fee and bot-gas accounting"
+    ],
+    "must_bind_to_live_value": true
+  },
+  "scan_directive": {
+    "mode": "historical_pattern_scan",
+    "must_reject_if_admin_only": true,
+    "must_reject_if_future_deposit_dependent": true,
+    "must_reject_if_unbacked_reward_only": true,
+    "must_reject_if_pure_key_or_frontend_compromise": true
+  },
+  "tags": [
+    "slowmist",
+    "bridge",
+    "message-hash-collision",
+    "historical-pattern",
+    "fund-extraction"
+  ],
+  "notes": [
+    "SlowMist attack method: Smart Contract Vulnerability.",
+    "Selected for scanned because: retry message hash collision allowed forged cross-chain message",
+    "This seed is not proof that BridgeIndex is vulnerable; Workflow 7 must reject it unless the primitive maps to non-admin extraction of a current live ledger row."
+  ]
+}

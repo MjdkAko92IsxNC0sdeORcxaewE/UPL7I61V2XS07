@@ -44,10 +44,12 @@ def copy_researcher_md_to_repo(worktree_dir: Path):
 
 
 def copy_live_context_json_to_repo(worktree_dir: Path):
-    """Copy setup/live_context.json into the root of the generated repository."""
+    """Copy live context files into the root of the generated repository."""
     project_root = Path(__file__).resolve().parent.parent
     source_security_file = project_root / "setup" / "live_context.json"
     target_security_file = worktree_dir / "live_context.json"
+    source_v2_file = project_root / "setup" / "live_context_v2.json"
+    target_v2_file = worktree_dir / "live_context_v2.json"
 
     if not source_security_file.exists():
         print(f"❌ Missing live_context.json source file: {source_security_file}")
@@ -55,6 +57,9 @@ def copy_live_context_json_to_repo(worktree_dir: Path):
 
     shutil.copy2(source_security_file, target_security_file)
     print(f"✅ Added live_context.json to repo root: {target_security_file}")
+    if source_v2_file.exists():
+        shutil.copy2(source_v2_file, target_v2_file)
+        print(f"✅ Added live_context_v2.json to repo root: {target_v2_file}")
     return True
 
 
@@ -308,5 +313,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
