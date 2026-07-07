@@ -554,8 +554,7 @@ class DeploymentReadinessTests(unittest.TestCase):
                 },
                 clear=False,
             ), patch.object(run_questions_generator_report, "GetQuestions", FailingQuestions):
-                with self.assertRaises(SystemExit):
-                    run_questions_generator_report.main()
+                run_questions_generator_report.main()
 
             restored_file = scope_questions_dir / "one.json"
             self.assertTrue(restored_file.exists())

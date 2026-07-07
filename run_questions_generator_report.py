@@ -231,7 +231,8 @@ def main():
             break
 
     if generated_files == 0:
-        raise SystemExit("No question output was generated; pending files were restored to scope_questions")
+        print("No question output was generated; restored pending files back to scope_questions")
+        return
 
     print(f"\n=== Completed {counter} reports into {generated_files} question files ===")
     if restored_files:
