@@ -518,6 +518,7 @@ class DeploymentReadinessTests(unittest.TestCase):
             "7_run_scanner.yml",
             "8_run_validator_report.yml",
             "9_run_clean_up.yml",
+            "actions_index_refresh.yml",
             "setup.yml",
             "setup_index.yml",
         }
