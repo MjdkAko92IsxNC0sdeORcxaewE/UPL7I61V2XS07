@@ -63,6 +63,15 @@ jobs:
         if: steps.check_questions.outputs.run_workflow == 'true'
         run: python run_questions_generator_report_generate.py
 
+      - name: Run reports with virtual display
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          sudo apt-get install xclip
+          xvfb-run --auto-servernum python run_questions_generator_report.py
+
 
       - name: Commit and push changes
         if: steps.check_questions.outputs.run_workflow == 'true'
@@ -70,8 +79,13 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add .
-          
-          git commit -m "Auto-update: collections and reports"
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Auto-update: collections and reports 648guf5868gfj58685f"
           # Retry logic
           n=0
           until [ $n -ge 3 ]; do
@@ -91,7 +105,7 @@ jobs:
           exit 1
           fi
 
-      - name: Trigger next batch after generate
+      - name: Trigger next batch after reports
         if: steps.check_questions.outputs.run_workflow == 'true' && inputs.smoke_limit == '' && inputs.chain_next != 'true'
         uses: nick-fields/retry@v3
         with:
@@ -110,44 +124,6 @@ jobs:
               -d '{"ref":"master"}'
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-
-
-      - name: Run reports with virtual display
-        env:
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb
-          sudo apt-get install xclip
-          xvfb-run --auto-servernum python run_questions_generator_report.py
-
-
-      - name: Commit and push changes
-        if: steps.check_questions.outputs.run_workflow == 'true'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add .
-          
-          git commit -m "Auto-update: collections and reports"
-          # Retry logic
-          n=0
-          until [ $n -ge 3 ]; do
-            git pull --rebase origin master
-            if git push --force origin master; then
-              echo "Push succeeded"
-              break
-            fi
-            n=$((n+1))
-            echo "Push failed, retrying in 5 seconds..."
-            sleep 5
-          done
-          
-          # Fail the step if all retries are exhausted
-          if [ $n -eq 3 ]; then
-          echo "Failed to push after 3 attempts"
-          exit 1
-          fi
 
       - name: Verify and advance chain
         if: steps.check_questions.outputs.run_workflow == 'true' && inputs.chain_next == 'true'
