@@ -63,16 +63,6 @@ jobs:
         if: steps.check_questions.outputs.run_workflow == 'true'
         run: python run_questions_generator_report_generate.py
 
-      - name: Run reports with virtual display
-        if: steps.check_questions.outputs.run_workflow == 'true'
-        env:
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb
-          sudo apt-get install xclip
-          xvfb-run --auto-servernum python run_questions_generator_report.py
-
 
       - name: Commit and push changes
         if: steps.check_questions.outputs.run_workflow == 'true'
@@ -80,18 +70,13 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add .
-
-          if git diff --cached --quiet; then
-            echo "No tracked stage 3 changes to commit"
-            exit 0
-          fi
-
-          git commit -m "Auto-update: collections and reports 648guf5868gfj58685f"
+          
+          git commit -m "Auto-update: collections and reports"
           # Retry logic
           n=0
           until [ $n -ge 3 ]; do
             git pull --rebase origin master
-            if git push origin master; then
+            if git push --force origin master; then
               echo "Push succeeded"
               break
             fi
@@ -106,18 +91,8 @@ jobs:
           exit 1
           fi
 
-      - name: Check for remaining question files
-        id: check_remaining_questions
-        if: steps.check_questions.outputs.run_workflow == 'true'
-        run: |
-          if [ -n "$(find scope_questions -name '*.json' | head -n 1)" ]; then
-            echo "run_again=true" >> $GITHUB_OUTPUT
-          else
-            echo "run_again=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Trigger next batch after reports
-        if: steps.check_questions.outputs.run_workflow == 'true' && steps.check_remaining_questions.outputs.run_again == 'true' && inputs.smoke_limit == '' && inputs.chain_next != 'true'
+      - name: Trigger next batch after generate
+        if: steps.check_questions.outputs.run_workflow == 'true' && inputs.smoke_limit == '' && inputs.chain_next != 'true'
         uses: nick-fields/retry@v3
         with:
           max_attempts: 5
@@ -136,10 +111,48 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
+
+      - name: Run reports with virtual display
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          sudo apt-get install xclip
+          xvfb-run --auto-servernum python run_questions_generator_report.py
+
+
+      - name: Commit and push changes
+        if: steps.check_questions.outputs.run_workflow == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .
+          
+          git commit -m "Auto-update: collections and reports"
+          # Retry logic
+          n=0
+          until [ $n -ge 3 ]; do
+            git pull --rebase origin master
+            if git push --force origin master; then
+              echo "Push succeeded"
+              break
+            fi
+            n=$((n+1))
+            echo "Push failed, retrying in 5 seconds..."
+            sleep 5
+          done
+          
+          # Fail the step if all retries are exhausted
+          if [ $n -eq 3 ]; then
+          echo "Failed to push after 3 attempts"
+          exit 1
+          fi
+
       - name: Verify and advance chain
         if: steps.check_questions.outputs.run_workflow == 'true' && inputs.chain_next == 'true'
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python workflow_chain.py advance --stage 3 --same-workflow 3_run_question_generator_questions.yml --next-workflow 4_run_automation.yml --smoke-limit "${{ inputs.smoke_limit }}"
 
-# Workflow registration refresh for migrated repository 2026-07-07.
+# Workflow registration refresh for migrated repository.
