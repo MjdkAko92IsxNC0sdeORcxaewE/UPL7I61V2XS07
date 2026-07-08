@@ -102,6 +102,26 @@ def get_scope_questions_pending_files():
     return pending_files
 
 
+def pending_urls(data):
+    seen = set()
+    urls = []
+    for item in data:
+        if not isinstance(item, dict) or item.get("questions_generated"):
+            continue
+        url = item.get("url")
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        urls.append(url)
+    return urls
+
+
+def mark_url_generated(data, url):
+    for item in data:
+        if isinstance(item, dict) and item.get("url") == url:
+            item["questions_generated"] = True
+
+
 def restore_pending_file_to_scope_questions(file_path, data=None):
     scope_questions_dir = os.environ.get("SCOPE_QUESTIONS_DIR", "scope_questions")
     os.makedirs(scope_questions_dir, exist_ok=True)
@@ -173,12 +193,7 @@ def move_files_back_to_scope_questions():
 
 def main():
     pending_files = get_scope_questions_pending_files()
-    total = sum(
-        1
-        for _, data in pending_files
-        for item in data
-        if isinstance(item, dict) and item.get("url") and not item.get("questions_generated")
-    )
+    total = sum(len(pending_urls(data)) for _, data in pending_files)
 
     if total == 0:
         print("No pending reports to generate")
@@ -195,15 +210,11 @@ def main():
     for json_file, data in pending_files:
         restore_file = False
 
-        for item in data:
-            if not isinstance(item, dict) or not item.get("url") or item.get("questions_generated"):
-                continue
-
+        for url in pending_urls(data):
             if counter >= max_reports:
                 restore_file = True
                 break
 
-            url = item["url"]
             print(f"[{counter + 1}/{total}] Generating report for: {url}")
             try:
                 saved_count = report.get_questions(url)
@@ -212,9 +223,14 @@ def main():
                 restore_file = True
                 continue
 
-            item["questions_generated"] = True
+            if not saved_count:
+                print(f"\n!!! ERROR while generating {url}: no question output was saved")
+                restore_file = True
+                continue
+
+            mark_url_generated(data, url)
             counter += 1
-            generated_files += saved_count or 0
+            generated_files += saved_count
 
         remaining = [
             item
@@ -231,8 +247,7 @@ def main():
             break
 
     if generated_files == 0:
-        print("No question output was generated; restored pending files back to scope_questions")
-        return
+        raise RuntimeError("No question output was generated; restored pending files back to scope_questions")
 
     print(f"\n=== Completed {counter} reports into {generated_files} question files ===")
     if restored_files:

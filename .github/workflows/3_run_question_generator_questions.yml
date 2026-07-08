@@ -64,6 +64,7 @@ jobs:
         run: python run_questions_generator_report_generate.py
 
       - name: Run reports with virtual display
+        if: steps.check_questions.outputs.run_workflow == 'true'
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
@@ -105,8 +106,18 @@ jobs:
           exit 1
           fi
 
+      - name: Check for remaining question files
+        id: check_remaining_questions
+        if: steps.check_questions.outputs.run_workflow == 'true'
+        run: |
+          if [ -n "$(find scope_questions -name '*.json' | head -n 1)" ]; then
+            echo "run_again=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_again=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Trigger next batch after reports
-        if: steps.check_questions.outputs.run_workflow == 'true' && inputs.smoke_limit == '' && inputs.chain_next != 'true'
+        if: steps.check_questions.outputs.run_workflow == 'true' && steps.check_remaining_questions.outputs.run_again == 'true' && inputs.smoke_limit == '' && inputs.chain_next != 'true'
         uses: nick-fields/retry@v3
         with:
           max_attempts: 5
