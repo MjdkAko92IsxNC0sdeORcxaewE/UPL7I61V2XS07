@@ -1,0 +1,152 @@
+[
+  {
+    "filename": "live_asset_seed__bsc__0x3cd6fb6b0cddd3610f0f4769aa7bb686cd4a4b55__0x55d398326f99059ff775485246999027b3197955_usdt.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:15:32.319160",
+    "report_generated": false
+  },
+  {
+    "filename": "live_asset_seed__bsc__0x3cd6fb6b0cddd3610f0f4769aa7bb686cd4a4b55__native_bnb.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:15:43.975376",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__adshares_bridge__signature_or_quorum_validation_failure__eth__2026.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:15:55.888807",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__aethir__authorization_logic_failure__bsc__2026.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:16:07.777343",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__alephium_bridge__bridge_contract_vulnerability__bsc__2026.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:16:19.877113",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__allbridge__bridge_liquidity_accounting_manipulation__bsc__2023.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:16:31.820792",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__aztec_bridge__proof_verification_bypass__eth__2026.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:16:43.779880",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__butter_bridge__message_hash_collision__eth__2026.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:16:55.805156",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__celer_network__proof_verification_bypass__multi__2023.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:17:07.890419",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__chainswap__bridge_contract_vulnerability__multi__2021.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:17:19.892591",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__chainswap__signature_or_quorum_validation_failure__multi__2021.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:17:31.917775",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__crosscurve__bridge_contract_vulnerability__multi__2026.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:17:43.974018",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__dgld__bridge_contract_vulnerability__eth__2026.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:17:56.054424",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__hyperbridge__message_origin_verification_bypass__bsc__2026.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:18:08.245475",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__marvin_inu__bridge_liquidity_accounting_manipulation__eth__2022.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:18:20.450806",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__meter_io__deposit_credit_validation_bypass__bsc__2022.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:18:32.560368",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__multichain__bridge_contract_vulnerability__bsc__2022.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:18:44.646330",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__multichain__signature_or_quorum_validation_failure__bsc__2021.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:18:56.776688",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__multichain__signature_or_quorum_validation_failure__eth__2023.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:19:08.962847",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__nerve__bridge_liquidity_accounting_manipulation__bsc__2021.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:19:21.126754",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__nomad_zero_root_message_replay__eth__2022.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:19:33.244001",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__optics_bridge__signature_or_quorum_validation_failure__eth__2021.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:19:45.332237",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__pnetwork__bridge_contract_vulnerability__bsc__2021.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:19:57.480616",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__pnetwork__token_mapping_or_configuration_error__bsc__2022.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:20:09.665842",
+    "report_generated": false
+  },
+  {
+    "filename": "past_live_hack__poly_network__authorization_logic_failure__bsc__2021.json",
+    "url": "https://deepwiki.com/Jaredbent7th/BridgeIndex--002",
+    "timestamp": "2026-07-09 07:20:21.912763",
+    "report_generated": false
+  }
+]
