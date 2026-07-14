@@ -1,0 +1,7 @@
+[
+  {
+    "question": "'File Name: src/contracts/BotBridge.sol -> Scope: Critical Fund extraction or protocol value drain: any bug that lets an unprivileged user withdraw, refund, execute, redirect, unlock, underpay, over-credit, or otherwise extract current live BNB, USDT, or bridge-held value from the deployed BridgeIndex proxy or dependencies beyond valid entitlement'",
+    "url": "https://deepwiki.com/Byjakeconnolly7th/BridgeIndex--006",
+    "questions_generated": false
+  }
+]
