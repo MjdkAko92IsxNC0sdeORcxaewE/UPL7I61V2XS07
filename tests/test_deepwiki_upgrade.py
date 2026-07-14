@@ -7,6 +7,7 @@ from unittest.mock import mock_open, patch
 
 import questions
 import run_questions_generator_report
+import run_automation_report
 import workflow_chain
 from bot_blueprint import load_blueprint
 from bot_runtime import batch_limit, smoke_enabled, smoke_limit
@@ -14,6 +15,7 @@ from deepwiki_triage import classify_deepwiki_response, parse_json_response, sav
 from live_context_scanner import CHAIN_CONFIGS, COMMON_TOKENS, EXPLORER_TO_CHAIN
 from live_context_schema import load_and_validate
 from proof_gate_schema import PROOF_GATE_CONTRACT
+from questions_generator import GetQuestions
 from run_materialize_live_asset_seeds import materialize_live_asset_seeds
 from scanned_report_schema import SCANNED_REPORT_CONTRACT
 
@@ -227,6 +229,34 @@ class BlueprintPromptTests(unittest.TestCase):
 
 
 class DeepWikiTriageTests(unittest.TestCase):
+    def test_workflow_3_parses_stored_response_without_browser(self):
+        response = 'prefix "[File: src/A.sol] [Function: withdraw] Can accounting be bypassed?" suffix'
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict(os.environ, {"QUESTION_DIR": tmp}, clear=False):
+                paths = GetQuestions.save_question_content(response, source="stored-test")
+
+            self.assertEqual(len(paths), 1)
+            self.assertEqual(
+                json.loads(Path(paths[0]).read_text(encoding="utf-8")),
+                ["[File: src/A.sol] [Function: withdraw] Can accounting be bypassed?"],
+            )
+
+    def test_workflow_3_pending_records_keep_response_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pending = Path(tmp)
+            payload = [{"question": "scope", "url": "https://example.test", "response": "answer"}]
+            (pending / "batch.json").write_text(json.dumps(payload), encoding="utf-8")
+            with patch.dict(os.environ, {"SCOPE_QUESTIONS_PENDING_DIR": str(pending)}, clear=False):
+                self.assertEqual(run_questions_generator_report.get_scope_questions_pending(), payload)
+
+    def test_workflow_5_pending_records_keep_response_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pending = Path(tmp)
+            payload = [{"question": "audit", "url": "https://example.test", "response": "result"}]
+            (pending / "batch.json").write_text(json.dumps(payload), encoding="utf-8")
+            with patch.dict(os.environ, {"AUTOMATION_PENDING_DIR": str(pending)}, clear=False):
+                self.assertEqual(run_automation_report.get_automation_pending(), payload)
+
     def test_classifies_known_verdicts(self):
         self.assertEqual(classify_deepwiki_response("#NoVulnerability found"), "reject")
         self.assertEqual(
@@ -515,7 +545,7 @@ class DeploymentReadinessTests(unittest.TestCase):
 
         self.assertNotIn("git commit -m", between_move_and_report)
         self.assertIn("git diff --cached --quiet", content)
-        self.assertIn("Trigger next batch after reports", content)
+        self.assertIn("Verify and advance chain", content)
         self.assertNotIn("Trigger next batch after generate", content)
 
     def test_report_runner_restores_pending_file_when_generation_fails(self):
@@ -554,7 +584,8 @@ class DeploymentReadinessTests(unittest.TestCase):
                 },
                 clear=False,
             ), patch.object(run_questions_generator_report, "GetQuestions", FailingQuestions):
-                run_questions_generator_report.main()
+                with self.assertRaisesRegex(RuntimeError, "empty DeepWiki output"):
+                    run_questions_generator_report.main()
 
             restored_file = scope_questions_dir / "one.json"
             self.assertTrue(restored_file.exists())

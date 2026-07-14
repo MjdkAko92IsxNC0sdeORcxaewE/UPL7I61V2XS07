@@ -105,20 +105,30 @@ class Deepwiki:
                                            textarea)
                 textarea.send_keys(".. ")
 
+                initial_copy_count = len(
+                    self.driver.find_elements(By.CSS_SELECTOR, '[aria-label="Copy"]')
+                )
                 textarea.send_keys(Keys.ENTER)
 
-                def response_page_ready(driver):
-                    current_url = driver.current_url.rstrip("/")
-                    base_url = BASE_URL.rstrip("/")
-                    copy_buttons = driver.find_elements(By.CSS_SELECTOR, '[aria-label="Copy"]')
-                    return current_url if current_url != base_url and copy_buttons else False
+                copy_buttons = wait.until(lambda driver: (
+                    buttons
+                    if len(buttons := driver.find_elements(By.CSS_SELECTOR, '[aria-label="Copy"]')) > initial_copy_count
+                    else False
+                ))
+                last_copy_button = copy_buttons[-1]
+                wait.until(EC.element_to_be_clickable(last_copy_button)).click()
+                copy_response = wait.until(EC.element_to_be_clickable((
+                    By.XPATH,
+                    "//div[@role='menuitem' and normalize-space(text())='Copy response']",
+                )))
+                copy_response.click()
+                response_text = pyperclip.paste()
+                if not response_text.strip():
+                    raise RuntimeError("DeepWiki returned an empty audit response")
 
-                # Save only a durable response page.  A fixed delay can capture
-                # the repository landing URL before Deep Research has replied.
-                current_url = wait.until(response_page_ready)
+                current_url = self.driver.current_url
 
-                # add the current url to collections
-                self.save_to_file_path(question_gotten, current_url)
+                self.save_to_file_path(question_gotten, current_url, response_text)
                 return current_url
             except Exception as a:
                 last_error = a
@@ -129,8 +139,8 @@ class Deepwiki:
 
         raise RuntimeError(f"DeepWiki audit submission failed after 10 attempts: {last_error}")
 
-    def save_to_file_path(self, question, url):
-        """Save question and URL to collections.json"""
+    def save_to_file_path(self, question, url, response_text):
+        """Save the audit prompt, completed response, and source URL."""
         file_path = config("AUTOMATION_PATH")
 
         # Load existing data or start fresh
@@ -149,6 +159,7 @@ class Deepwiki:
         data.append({
             "question": question,
             "url": url,
+            "response": response_text,
             "timestamp": str(datetime.now()),
             "report_generated": False
         })

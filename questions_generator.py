@@ -101,21 +101,32 @@ class GenerateQuestions:
                                            textarea)
                 textarea.send_keys(".. ")
 
+                initial_copy_count = len(
+                    self.driver.find_elements(By.CSS_SELECTOR, '[aria-label="Copy"]')
+                )
                 textarea.send_keys(Keys.ENTER)
 
-                def response_page_ready(driver):
-                    current_url = driver.current_url.rstrip("/")
-                    base_url = BASE_URL.rstrip("/")
-                    copy_buttons = driver.find_elements(By.CSS_SELECTOR, '[aria-label="Copy"]')
-                    return current_url if current_url != base_url and copy_buttons else False
+                copy_buttons = wait.until(lambda driver: (
+                    buttons
+                    if len(buttons := driver.find_elements(By.CSS_SELECTOR, '[aria-label="Copy"]')) > initial_copy_count
+                    else False
+                ))
+                last_copy_button = copy_buttons[-1]
+                wait.until(EC.element_to_be_clickable(last_copy_button)).click()
+                copy_response = wait.until(EC.element_to_be_clickable((
+                    By.XPATH,
+                    "//div[@role='menuitem' and normalize-space(text())='Copy response']",
+                )))
+                copy_response.click()
+                response_text = pyperclip.paste()
+                if not response_text.strip():
+                    raise RuntimeError("DeepWiki returned an empty question-generation response")
 
-                # Deep Research regularly takes longer than the old fixed
-                # ten-second delay.  Do not persist the repository landing URL;
-                # stage 3 needs the durable response URL and its copy control.
-                current_url = wait.until(response_page_ready)
+                current_url = self.driver.current_url
 
-                # add the current url to collections
-                self.save_to_questions(question_gotten, current_url)
+                # Persist the response itself.  The URL is useful metadata but
+                # is not a reliable cross-run transport between GitHub runners.
+                self.save_to_questions(question_gotten, current_url, response_text)
                 return current_url
             except Exception as a:
                 last_error = a
@@ -126,8 +137,8 @@ class GenerateQuestions:
 
         raise RuntimeError(f"DeepWiki question submission failed after 10 attempts: {last_error}")
 
-    def save_to_questions(self, question_gotten, url):
-        """Save question and URL to questions.json"""
+    def save_to_questions(self, question_gotten, url, response_text):
+        """Save the prompt, response text, and source URL for Workflow 3."""
         collections_file = config("SCOPE_QUESTIONS_PATH")
 
         # Load existing data or start fresh
@@ -146,6 +157,7 @@ class GenerateQuestions:
         data.append({
             "question": question_gotten,
             "url": url,
+            "response": response_text,
             "questions_generated": False
         })
 
@@ -207,45 +219,13 @@ class GetQuestions:
 
             clipboard_content = pyperclip.paste()
 
-            all_questions = self.get_question_content(clipboard_content)
-
-            # An empty parse is not a successful DeepWiki response.  Treat it as
-            # a hard failure so the workflow restores its input instead of
-            # committing an input deletion with no question output.
-            if not all_questions:
-                raise RuntimeError(f"DeepWiki response contained no parseable audit questions: {url}")
-
-            saved_paths = []
-            try:
-                # Split into chunks of 25
-                chunk_size = 25
-                total_questions = len(all_questions)
-
-                for i in range(0, total_questions, chunk_size):
-                    # Get a chunk of 25 questions
-                    chunk = all_questions[i:i + chunk_size]
-
-                    # Generate a unique filename
-                    filename = f"{str(uuid.uuid4())}.json".replace("-", "")
-                    filepath = os.path.join(question_directory, filename)
-
-                    # Save the chunk to a new file
-                    with open(filepath, 'w', encoding='utf-8') as f:
-                        json.dump(chunk, f, indent=2, ensure_ascii=False)
-                    saved_paths.append(filepath)
-
-                    print(f"Saved {len(chunk)} questions to {filepath}")
-
-                print(
-                    f"\nSuccessfully split {total_questions} questions into {((total_questions - 1) // chunk_size) + 1} files")
-                return saved_paths
-            except Exception as a:
-                raise RuntimeError(f"Failed to save parsed questions for {url}: {a}") from a
+            return self.save_question_content(clipboard_content, source=url)
 
         except Exception as e:
             raise RuntimeError(f"Failed to collect questions from {url}: {e}") from e
 
-    def get_question_content(self, clip_board_content: str) -> List[str]:
+    @staticmethod
+    def get_question_content(clip_board_content: str) -> List[str]:
         """
             Extracts security audit questions from the provided text using regex.
             """
@@ -253,6 +233,26 @@ class GetQuestions:
         questions = re.findall(pattern, clip_board_content, flags=re.DOTALL)
         # Optional: Clean up whitespace (strip) for each question found
         return [q.strip() for q in questions]
+
+    @classmethod
+    def save_question_content(cls, response_text: str, source: str = "stored response") -> List[str]:
+        question_directory = os.environ.get('QUESTION_DIR', 'question')
+        os.makedirs(question_directory, exist_ok=True)
+        all_questions = cls.get_question_content(response_text)
+        if not all_questions:
+            raise RuntimeError(f"DeepWiki response contained no parseable audit questions: {source}")
+
+        saved_paths = []
+        chunk_size = 25
+        for offset in range(0, len(all_questions), chunk_size):
+            chunk = all_questions[offset:offset + chunk_size]
+            filename = f"{uuid.uuid4().hex}.json"
+            filepath = os.path.join(question_directory, filename)
+            with open(filepath, 'w', encoding='utf-8') as handle:
+                json.dump(chunk, handle, indent=2, ensure_ascii=False)
+            saved_paths.append(filepath)
+            print(f"Saved {len(chunk)} questions to {filepath}")
+        return saved_paths
 
 
 def generate_file_path_for_scope():

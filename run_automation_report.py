@@ -9,6 +9,7 @@ import json
 import os
 from bot_runtime import batch_limit
 from automation import GetReports
+from deepwiki_triage import save_deepwiki_response
 
 
 def get_automation_pending():
@@ -19,7 +20,7 @@ def get_automation_pending():
         list: A list of URLs found in all JSON files
     """
     automation_pending_dir = os.environ.get("AUTOMATION_PENDING_DIR", "automation_pending")
-    urls = []
+    records = []
 
     # Ensure directory exists
     if not os.path.exists(automation_pending_dir):
@@ -43,16 +44,16 @@ def get_automation_pending():
                 if isinstance(data, list):
                     for item in data:
                         if isinstance(item, dict) and 'url' in item:
-                            urls.append(item['url'])
+                            records.append(item)
                 elif isinstance(data, dict) and 'url' in data:
-                    urls.append(data['url'])
+                    records.append(data)
 
         except json.JSONDecodeError as e:
             print(f"Error parsing {json_file}: {e}")
         except Exception as e:
             print(f"Error processing {json_file}: {e}")
 
-    return urls
+    return records
 
 
 def move_files_back_to_automation():
@@ -102,8 +103,8 @@ def move_files_back_to_automation():
 
 def main():
     try:
-        pending_urls = get_automation_pending()
-        total = len(pending_urls)
+        pending_records = get_automation_pending()
+        total = len(pending_records)
 
         if total == 0:
             print("No pending reports to generate")
@@ -112,15 +113,26 @@ def main():
 
             counter = 0
             max_reports = batch_limit(500)
-            report = GetReports(teardown=True)
-            for i, url in enumerate(pending_urls):
-                print(f"[{i + 1}/{total}] Generating report for: {url[:50]}...")
-                report.get_report(url)
+            report = None
+            for i, record in enumerate(pending_records):
+                url = record.get("url", "")
+                response_text = record.get("response")
+                print(f"[{i + 1}/{total}] Generating report for: {(url or 'stored response')[:50]}...")
+                if response_text:
+                    saved_path = save_deepwiki_response(response_text, url or "stored-response")
+                    print(f"Stored response routed to: {saved_path}")
+                else:
+                    if report is None:
+                        report = GetReports(teardown=True)
+                    report.get_report(url)
                 counter += 1
                 if counter >= max_reports:
                     break
 
             print(f"\n=== Completed {total} reports ===")
+
+            if report is not None:
+                report.driver.quit()
 
     except Exception as e:
         print(f"\n!!! ERROR: {e}")

@@ -21,7 +21,7 @@ def get_scope_questions_pending():
         list: A list of URLs found in all JSON files
     """
     scope_questions_pending_dir = os.environ.get("SCOPE_QUESTIONS_PENDING_DIR", "scope_questions_pending")
-    urls = []
+    records = []
 
     # Ensure directory exists
     if not os.path.exists(scope_questions_pending_dir):
@@ -45,16 +45,16 @@ def get_scope_questions_pending():
                 if isinstance(data, list):
                     for item in data:
                         if isinstance(item, dict) and 'url' in item:
-                            urls.append(item['url'])
+                            records.append(item)
                 elif isinstance(data, dict) and 'url' in data:
-                    urls.append(data['url'])
+                    records.append(data)
 
         except json.JSONDecodeError as e:
             print(f"Error parsing {json_file}: {e}")
         except Exception as e:
             print(f"Error processing {json_file}: {e}")
 
-    return urls
+    return records
 
 
 def move_files_back_to_scope_questions():
@@ -106,8 +106,8 @@ def move_files_back_to_scope_questions():
 def main():
     report = None
     try:
-        pending_urls = get_scope_questions_pending()
-        total = len(pending_urls)
+        pending_records = get_scope_questions_pending()
+        total = len(pending_records)
 
         if total == 0:
             print("No pending reports to generate")
@@ -116,11 +116,17 @@ def main():
 
             counter = 0
             max_reports = batch_limit(500)
-            report = GetQuestions(teardown=True)
             saved_outputs = []
-            for i, url in enumerate(pending_urls):
-                print(f"[{i + 1}/{total}] Generating report for: {url}")
-                saved_outputs.extend(report.get_questions(url))
+            for i, record in enumerate(pending_records):
+                url = record.get("url", "")
+                response_text = record.get("response")
+                print(f"[{i + 1}/{total}] Generating questions from: {url or 'stored response'}")
+                if response_text:
+                    saved_outputs.extend(GetQuestions.save_question_content(response_text, source=url or "stored response"))
+                else:
+                    if report is None:
+                        report = GetQuestions(teardown=True)
+                    saved_outputs.extend(report.get_questions(url))
                 counter += 1
                 if counter >= max_reports:
                     break
@@ -140,7 +146,7 @@ def main():
             print("No files were moved back")
         raise
     finally:
-        if report is not None:
+        if report is not None and hasattr(report, "driver"):
             report.driver.quit()
 
 
