@@ -53,12 +53,11 @@ jobs:
       - name: Check for question files
         id: check_questions
         run: |
-          # Logic to check if there are files to process
-          if [ -n "$(find scope_questions -name '*.json' | head -n 1)" ]; then
-            echo "run_workflow=true" >> $GITHUB_OUTPUT
-          else
-            echo "run_workflow=false" >> $GITHUB_OUTPUT
+          if [ -z "$(find scope_questions -type f -name '*.json' -print -quit 2>/dev/null)" ]; then
+            echo "::error::Stage 3 has no scope_questions/*.json input. Run the earliest missing upstream stage (Workflow 1 when scope/ is also empty, otherwise Workflow 2)."
+            exit 1
           fi
+          echo "run_workflow=true" >> "$GITHUB_OUTPUT"
 
       - name: Run Generate File
         env:

@@ -53,13 +53,12 @@ jobs:
       - name: Check for question files
         id: check_questions
         run: |
-          if [ -z "$(ls -A question/*.json 2>/dev/null)" ]; then
-            echo "No question files found, skipping workflow"
-            echo "run_workflow=false" >> $GITHUB_OUTPUT
-          else
-            echo "Question files found, continuing workflow"
-            echo "run_workflow=true" >> $GITHUB_OUTPUT
+          if [ -z "$(find question -type f -name '*.json' -print -quit 2>/dev/null)" ]; then
+            echo "::error::Stage 4 has no question/*.json input. Run Workflow 3 after its scope_questions/*.json input has been produced."
+            exit 1
           fi
+          echo "Question files found, continuing workflow"
+          echo "run_workflow=true" >> "$GITHUB_OUTPUT"
 
       - name: Run Generate File
         env:
@@ -70,6 +69,7 @@ jobs:
 
 
       - name: Install Chrome
+        if: steps.check_questions.outputs.run_workflow == 'true'
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
