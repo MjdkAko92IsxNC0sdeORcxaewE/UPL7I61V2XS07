@@ -107,8 +107,15 @@ class Deepwiki:
 
                 textarea.send_keys(Keys.ENTER)
 
-                time.sleep(10)
-                current_url = self.driver.current_url
+                def response_page_ready(driver):
+                    current_url = driver.current_url.rstrip("/")
+                    base_url = BASE_URL.rstrip("/")
+                    copy_buttons = driver.find_elements(By.CSS_SELECTOR, '[aria-label="Copy"]')
+                    return current_url if current_url != base_url and copy_buttons else False
+
+                # Save only a durable response page.  A fixed delay can capture
+                # the repository landing URL before Deep Research has replied.
+                current_url = wait.until(response_page_ready)
 
                 # add the current url to collections
                 self.save_to_file_path(question_gotten, current_url)

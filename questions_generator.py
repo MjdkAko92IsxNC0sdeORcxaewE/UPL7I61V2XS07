@@ -103,8 +103,16 @@ class GenerateQuestions:
 
                 textarea.send_keys(Keys.ENTER)
 
-                time.sleep(10)
-                current_url = self.driver.current_url
+                def response_page_ready(driver):
+                    current_url = driver.current_url.rstrip("/")
+                    base_url = BASE_URL.rstrip("/")
+                    copy_buttons = driver.find_elements(By.CSS_SELECTOR, '[aria-label="Copy"]')
+                    return current_url if current_url != base_url and copy_buttons else False
+
+                # Deep Research regularly takes longer than the old fixed
+                # ten-second delay.  Do not persist the repository landing URL;
+                # stage 3 needs the durable response URL and its copy control.
+                current_url = wait.until(response_page_ready)
 
                 # add the current url to collections
                 self.save_to_questions(question_gotten, current_url)
