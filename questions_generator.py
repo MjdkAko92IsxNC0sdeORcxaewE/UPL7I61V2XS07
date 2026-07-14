@@ -201,6 +201,13 @@ class GetQuestions:
 
             all_questions = self.get_question_content(clipboard_content)
 
+            # An empty parse is not a successful DeepWiki response.  Treat it as
+            # a hard failure so the workflow restores its input instead of
+            # committing an input deletion with no question output.
+            if not all_questions:
+                raise RuntimeError(f"DeepWiki response contained no parseable audit questions: {url}")
+
+            saved_paths = []
             try:
                 # Split into chunks of 25
                 chunk_size = 25
@@ -217,16 +224,18 @@ class GetQuestions:
                     # Save the chunk to a new file
                     with open(filepath, 'w', encoding='utf-8') as f:
                         json.dump(chunk, f, indent=2, ensure_ascii=False)
+                    saved_paths.append(filepath)
 
                     print(f"Saved {len(chunk)} questions to {filepath}")
 
                 print(
                     f"\nSuccessfully split {total_questions} questions into {((total_questions - 1) // chunk_size) + 1} files")
+                return saved_paths
             except Exception as a:
-                print(a)
+                raise RuntimeError(f"Failed to save parsed questions for {url}: {a}") from a
 
         except Exception as e:
-            print(f"An error occurred: {str(e)}")
+            raise RuntimeError(f"Failed to collect questions from {url}: {e}") from e
 
     def get_question_content(self, clip_board_content: str) -> List[str]:
         """

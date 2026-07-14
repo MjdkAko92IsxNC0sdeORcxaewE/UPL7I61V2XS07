@@ -76,3 +76,4 @@ except Exception as e:
             print(f"Moved {pending_file} back to {question_dir} due to error")
         else:
             print(f"Failed to move {pending_file} back to {question_dir}")
+    raise

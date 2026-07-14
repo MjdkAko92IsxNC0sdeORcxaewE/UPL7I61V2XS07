@@ -104,6 +104,7 @@ def move_files_back_to_scope_questions():
 
 
 def main():
+    report = None
     try:
         pending_urls = get_scope_questions_pending()
         total = len(pending_urls)
@@ -116,14 +117,18 @@ def main():
             counter = 0
             max_reports = batch_limit(500)
             report = GetQuestions(teardown=True)
+            saved_outputs = []
             for i, url in enumerate(pending_urls):
                 print(f"[{i + 1}/{total}] Generating report for: {url}")
-                report.get_questions(url)
+                saved_outputs.extend(report.get_questions(url))
                 counter += 1
                 if counter >= max_reports:
                     break
 
-            print(f"\n=== Completed {total} reports ===")
+            if not saved_outputs:
+                raise RuntimeError("DeepWiki completed without saving any question output")
+
+            print(f"\n=== Saved {len(saved_outputs)} question file(s) from {counter} report(s) ===")
 
     except Exception as e:
         print(f"\n!!! ERROR: {e}")
@@ -133,6 +138,10 @@ def main():
             print(f"Moved {len(moved)} files back to automation directory")
         else:
             print("No files were moved back")
+        raise
+    finally:
+        if report is not None:
+            report.driver.quit()
 
 
 
